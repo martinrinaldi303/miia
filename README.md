@@ -124,7 +124,7 @@ applies only what that evidence supports, without interrupting the live measurem
 | Where | What changes |
 |---|---|
 | `MIIA/miia_chatbot.py` | For each ETF, an EWMA volatility forecast (RiskMetrics, λ = 0.94) for the next two days, and the ratio against its usual volatility. Sent inside `/api/portfolio` as `volatilidad_2d` and in each asset (`vol_2d_pct`, `ratio_vol`, `mas_movido`). |
-| `scripts/chat_*.js`, `scripts/class25B.js` | The chat's risk answer adds "typical move of ±X % over the next two days, more/less than usual — this says how much, not which way". |
+| `scripts/chat_*.js`, `scripts/class25B.js` | The chat's risk answer adds "typical move of ±X % over the next two days, more/less than usual — this says how much, not which way". **Rolled back on 25 Nov 2026**: the chat returned to its 16-Nov version while the language engine was being debugged; the forecast is still served by `/api/portfolio`. |
 | `scripts/publi_src/index.html` | A "Next 2 days" box in the Portfolio panel: the ETFs expected to move more and less than usual. |
 
 Why EWMA and not MIIA's neural chain: in `docs/simulaciones/sim56_volatilidad.py`
@@ -312,7 +312,7 @@ cortar la medición en vivo.
 | Dónde | Qué cambia |
 |---|---|
 | `MIIA/miia_chatbot.py` | Para cada ETF, un pronóstico de volatilidad EWMA (RiskMetrics, λ = 0,94) para los próximos dos días, y su relación con la volatilidad habitual. Viaja dentro de `/api/portfolio` como `volatilidad_2d` y en cada activo (`vol_2d_pct`, `ratio_vol`, `mas_movido`). |
-| `scripts/chat_*.js`, `scripts/class25B.js` | La respuesta de riesgo del chat suma «movimiento típico de ±X % en los próximos dos días, más o menos de lo habitual: dice cuánto, no hacia dónde». |
+| `scripts/chat_*.js`, `scripts/class25B.js` | La respuesta de riesgo del chat suma «movimiento típico de ±X % en los próximos dos días, más o menos de lo habitual: dice cuánto, no hacia dónde». **Revertido el 25-nov-2026**: el chat volvió a su versión del 16-nov mientras se revisaba el motor de lenguaje; el pronóstico sigue saliendo por `/api/portfolio`. |
 | `scripts/publi_src/index.html` | Un recuadro «Próximos 2 días» en el panel Portfolio: los ETFs que se espera que se muevan más y menos de lo habitual. |
 
 Por qué EWMA y no la cadena neuronal de MIIA: en `docs/simulaciones/sim56_volatilidad.py`
