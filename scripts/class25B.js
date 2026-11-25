@@ -4418,11 +4418,7 @@ async function procesarInputHumano(msg) {
       if (r && r.riesgo_vol_pct != null && r.vol_pct != null) {
         const sc    = Number(r.riesgo_vol_pct);
         const nivel = sc > 66 ? "ALTO" : sc > 33 ? "MODERADO" : "BAJO";
-        // ORDEN 7 grupo A: el pronóstico de cuánto se va a mover (sim56), no hacia dónde.
-        const _v2  = r.vol_2d_pct != null && r.ratio_vol != null
-          ? ` Para los próximos 2 días calculo un movimiento típico de ±${Number(r.vol_2d_pct).toFixed(1)}%, ${Number(r.ratio_vol) >= 1.25 ? "más de lo que suele moverse" : Number(r.ratio_vol) <= 0.8 ? "menos de lo que suele moverse" : "parecido a lo habitual"} (cuánto, no hacia dónde).`
-          : "";
-        const resp  = `El riesgo de ${tk} es ${nivel}: volatilidad ${Number(r.vol_pct).toFixed(0)}% anual y caída máxima ${Number(r.drawdown_pct).toFixed(0)}% en los últimos 60 días (índice ${sc}/100).${_v2} Es información del análisis de MIIA, no asesoramiento: la decisión es tuya.`;
+        const resp  = `El riesgo de ${tk} es ${nivel}: volatilidad ${Number(r.vol_pct).toFixed(0)}% anual y caída máxima ${Number(r.drawdown_pct).toFixed(0)}% en los últimos 60 días (índice ${sc}/100). Es información del análisis de MIIA, no asesoramiento: la decisión es tuya.`;
         await _publicarRespuesta(resp, msg);
         _trackGeminiRespuesta(msg.session_id || msg.sesion || "", resp, 0.7);
         log(`👤 Respuesta [riesgo:${tk}] publicada (${resp.length} chars)`);
@@ -4445,7 +4441,7 @@ async function procesarInputHumano(msg) {
           respuesta = _r.texto;
           fuenteRespuesta = _r.motor;
           // Aprender/rastrear SÓLO del estilo de Gemini. El motor local NO debe
-          // contaminar learning_cycles (las notas internas: mezclar un 2B no se separa
+          // contaminar learning_cycles (CLAUDE.md: mezclar un 2B no se separa
           // hacia atrás). Para que el local aprenda está LLM_APRENDER_LOCAL,
           // dentro de _geminiMultiTurno.
           if (_r.motor === "gemini") {

@@ -215,8 +215,7 @@ export function armarPanel(raw = {}) {
     if (!r) continue;
     const vol = _n(r.vol ?? r.vol_pct), dd = _n(r.dd ?? r.drawdown_pct), ind = _n(r.indice ?? r.riesgo_vol_pct);
     if (vol == null) continue;
-    riesgoActivo[tk.toUpperCase()] = { vol, dd, indice: ind,
-                                       vol2d: _n(r.vol_2d_pct), ratio: _n(r.ratio_vol) };
+    riesgoActivo[tk.toUpperCase()] = { vol, dd, indice: ind };
   }
   const titulares = {};
   for (const [tk, arr] of Object.entries(raw.titulares || {})) {

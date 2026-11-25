@@ -262,9 +262,6 @@ C.riesgo = (it, ev, R, op) => {
       if (ev.datos.riesgo != null) p.push(`Es distinto del riesgo global del mercado, que está en ${Math.round(ev.datos.riesgo * 100)}% (${ev.datos.nivel}).`);
       if (v.hoy) p.push(`${cap(diaTxt(ev))} va ${pct(v.hoy.cambio)}.`);
       p.push(R.pick(["Es lo que el activo hizo, no un pronóstico.", "Mide el pasado reciente, no lo que va a pasar."]));
-      // ORDEN 7 grupo A: lo único que sí se predice es CUÁNTO se mueve (sim56).
-      if (r.vol2d != null && r.ratio != null)
-        p.push(`Para los próximos 2 días calculo un movimiento típico de ±${num(r.vol2d, 1)}%, ${r.ratio >= 1.25 ? "más de lo que suele moverse" : r.ratio <= 0.8 ? "menos de lo que suele moverse" : "parecido a lo habitual"}; eso dice cuánto, no hacia dónde.`);
       return { texto: p.join(" ") };
     }
     // Sin la medición de 60 días: lo que sí hay, sin inventar.

@@ -75,7 +75,13 @@ import torch.nn as nn
 # 15-ago-2026: con MySQL saturando 5 núcleos, class44 quedaba clavado en 1 y el
 # backlog de reentrenamientos crecía sin parar (20 → 337 outcomes en cola).
 # Un tercio de la máquina es suficiente para entrenar y deja la cadena viva.
-torch.set_num_threads(max(1, (os.cpu_count() or 2) // 3))
+# CLASS44_HILOS lo fija a mano (25-nov-2026: la CPU del server está al límite y
+# Ollama, que atiende el chat, necesita 4 núcleos libres para contestar a tiempo).
+try:
+    _HILOS = int(os.environ.get("CLASS44_HILOS", "0"))
+except ValueError:
+    _HILOS = 0
+torch.set_num_threads(_HILOS if _HILOS >= 1 else max(1, (os.cpu_count() or 2) // 3))
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.preprocessing import MinMaxScaler
 import joblib
@@ -133,6 +139,16 @@ FEEDBACK_RETRAIN_THRESHOLD = 20
 # RETRAIN_DAYS=7 gobierna el reentrenamiento programado; esto gobierna el
 # guiado, que es el que ORDEN 1 multiplicó.
 FEEDBACK_RETRAIN_MIN_H = 24
+# 25-nov-2026: con 50 modelos y un piso de 24 h había ~50 entrenamientos por día:
+# class44 tenía 2 núcleos ocupados casi todo el tiempo (top: ~200 % de CPU) y le
+# quitaba la CPU a Ollama, que atiende el chat. class44 está en SOMBRA (no vota),
+# así que entrenar menos no cambia ninguna decisión. Ahora el piso es de 7 días
+# (igual que RETRAIN_DAYS): ~7 entrenamientos por día en vez de ~50.
+# Reversa sin tocar código: CLASS44_RETRAIN_MIN_H=24.
+try:
+    FEEDBACK_RETRAIN_MIN_H = float(os.environ.get("CLASS44_RETRAIN_MIN_H", "168"))
+except ValueError:
+    FEEDBACK_RETRAIN_MIN_H = 168.0
 
 # Semáforo global: serializa el entrenamiento de los 7 modelos. En un VPS de 1 CPU,
 # entrenarlos en paralelo (7 hilos) satura CPU/RAM y hace thrashing → nunca terminan.
@@ -285,7 +301,26 @@ SELL_CALIB_EMA     = 0.5         # amortiguación: peso del corte nuevo vs el pr
 SELL_CORROBORA      = True         # activar/desactivar el gate de corroboración
 SELL_CORR_TTL_S     = 3 * 3600     # antigüedad máx. del dato corroborante (3h)
 SELL_SENT_BULL_VETO = 0.15         # sentiment_score >= esto (BULLISH) → veta el SELL
-HORIZONTE          = "4h"        # horizonte de señal (4h con datos horarios)
+# 25-nov-2026: la MISMA pregunta que verifica class43. Antes class44 aprendía
+# «¿el precio sube en 4 horas?» (absoluto) y class43 verifica «¿le ganó al
+# promedio del universo?» (relativo, ORDEN 1): el LSTM nunca se entrenó en la
+# pregunta de MIIA, y su marcador lo medía en otra. Ahora la etiqueta es el
+# retorno a HORIZONTE_BARRAS menos el promedio equiponderado de los 50 ETFs en
+# esas mismas barras (ver _benchmark_fwd).
+# Horizonte: las BUY/SELL que emite el ranking tienen confianza > 0,65 → class43
+# las verifica a 24 h, o sea UNA rueda. En barras horarias de Yahoo una rueda del
+# NYSE son 7 barras (9:30 … 15:30), así que relativa = 7 barras.
+# class44 SIGUE EN SOMBRA: no vota en class25A, no cambia ninguna decisión.
+# Reversa: CLASS44_ETIQUETA=absoluta (vuelve a 4 barras absolutas).
+ETIQUETA_RELATIVA  = os.environ.get("CLASS44_ETIQUETA", "relativa").strip().lower() != "absoluta"
+try:
+    _H_REL = int(os.environ.get("CLASS44_HORIZONTE_BARRAS", "7"))
+except ValueError:
+    _H_REL = 7
+HORIZONTE          = f"{_H_REL}h" if ETIQUETA_RELATIVA else "4h"   # barras horarias
+# Lo que se guarda con cada modelo: un modelo entrenado con otra pregunta no se
+# compara con el nuevo ni se conserva (ver necesita_reentrenamiento y entrenar).
+ETIQUETA_ID        = f"{'relativa' if ETIQUETA_RELATIVA else 'absoluta'}_{HORIZONTE}"
 # Barras hacia adelante para la ETIQUETA = MISMO horizonte que trackea class43.
 # 1 barra = 1h (INTERVALO_TRAIN="1h"), así que "4h" → 4 barras. Antes la etiqueta
 # miraba 1 barra (1h) mientras class43 medía el resultado a 4h → un acierto
@@ -455,6 +490,58 @@ def _build_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+# ── El promedio del universo, para la etiqueta relativa ───────────────────
+# Retorno a H barras de CADA ETF, promediado por hora (equiponderado, igual que
+# _marketRet de class43). Se baja una vez cada 12 h y se reusa: todo entrenamiento
+# corre dentro del _TRAIN_GATE, así que no hay descargas en paralelo.
+_BENCH = {"ts": 0.0, "h": None, "serie": None}
+_BENCH_TTL_S = 12 * 3600
+
+
+def _benchmark_fwd(horizon: int) -> "pd.Series | None":
+    if (_BENCH["serie"] is not None and _BENCH["h"] == horizon
+            and time.time() - _BENCH["ts"] < _BENCH_TTL_S):
+        return _BENCH["serie"]
+    fwds = []
+    for tk in TICKERS:
+        try:
+            df = yf.download(tk, period=PERIODO_TRAIN, interval=INTERVALO_TRAIN,
+                             auto_adjust=True, progress=False, multi_level_index=False,
+                             timeout=30)
+            if df is None or df.empty or "Close" not in df.columns:
+                continue
+            c = df["Close"].astype(float)
+            fwds.append((c.shift(-horizon) / c - 1).rename(tk))
+        except Exception as e:
+            log.warning(f"benchmark: {tk} no se pudo bajar ({e})")
+    if len(fwds) < max(5, len(TICKERS) // 2):
+        log.warning(f"benchmark: sólo {len(fwds)} de {len(TICKERS)} ETFs — sin etiqueta relativa")
+        return None
+    serie = pd.concat(fwds, axis=1).mean(axis=1, skipna=True)
+    _BENCH.update(ts=time.time(), h=horizon, serie=serie)
+    log.info(f"benchmark: promedio de {len(fwds)} ETFs a {horizon} barras, {len(serie)} horas")
+    return serie
+
+
+def _fwd_relativo(close: pd.Series, horizon: int) -> "pd.Series | None":
+    """Retorno a `horizon` barras menos el promedio del universo (absoluto si se
+    apagó la etiqueta relativa; None si no se pudo armar el promedio)."""
+    fwd = close.shift(-horizon) / close - 1
+    if not ETIQUETA_RELATIVA:
+        return fwd
+    bench = _benchmark_fwd(horizon)
+    if bench is None:
+        return None
+    return fwd - bench.reindex(close.index)
+
+
+def _umbral_relativo(fwd_rel: pd.Series) -> tuple[float, float]:
+    """0,5 σ del retorno RELATIVO al horizonte, sólo con el tramo de entrenamiento."""
+    s = float(fwd_rel.dropna().std() or 0.0)
+    u = float(np.clip(0.5 * s, 0.001, 0.10))
+    return u, -u
+
+
 def _calcular_umbral_dinamico(close: pd.Series, horizon: int = 1) -> tuple[float, float]:
     """
     Calcula umbrales BUY/SELL dinámicos basados en la volatilidad del ticker
@@ -529,13 +616,14 @@ def _calibrar_sell_umbral(probs_val: np.ndarray, y_val: np.ndarray,
 
 
 def _make_labels(close: pd.Series, label_up: float = 0.005, label_down: float = -0.005,
-                 horizon: int = 1) -> pd.Series:
+                 horizon: int = 1, fwd: "pd.Series | None" = None) -> pd.Series:
     """
     Retorno a 'horizon' barras hacia adelante con umbrales dinámicos.
     horizon DEBE coincidir con el horizonte que trackea class43 (HORIZONTE_BARRAS),
     para que lo que el modelo aprende a predecir sea lo mismo que después se mide.
     """
-    fwd    = close.shift(-horizon) / close - 1
+    if fwd is None:                            # `fwd` = el retorno RELATIVO si viene
+        fwd = close.shift(-horizon) / close - 1
     labels = pd.Series(1, index=close.index)   # HOLD por defecto
     labels[fwd >  label_up]   = 2              # BUY
     labels[fwd <  label_down] = 0              # SELL
@@ -577,6 +665,7 @@ class MotorLSTM:
         self._label_up    = 0.005    # umbral dinámico (se actualiza al entrenar)
         self._label_down  = -0.005
         self._sell_conf_min = SELL_CONF_MIN   # gate SELL dinámico (se calibra al entrenar)
+        self._etiqueta    = "absoluta_4h"     # con qué pregunta se entrenó (los viejos: absoluta)
 
     def _load_state(self):
         try:
@@ -587,6 +676,7 @@ class MotorLSTM:
             self._label_up   = s.get("label_up",   0.005)
             self._label_down = s.get("label_down", -0.005)
             self._sell_conf_min = s.get("sell_conf_min", SELL_CONF_MIN)
+            self._etiqueta   = s.get("etiqueta", "absoluta_4h")
         except Exception:
             pass
 
@@ -598,6 +688,7 @@ class MotorLSTM:
                 "label_up":   self._label_up,
                 "label_down": self._label_down,
                 "sell_conf_min": self._sell_conf_min,
+                "etiqueta":   self._etiqueta,
                 "intervalo":  INTERVALO_TRAIN,
                 "n_features": N_FEATURES,
             }), encoding="utf-8")
@@ -606,6 +697,8 @@ class MotorLSTM:
 
     def necesita_reentrenamiento(self) -> bool:
         if self.trained_at is None:
+            return True
+        if self._etiqueta != ETIQUETA_ID:     # entrenado con otra pregunta
             return True
         return (datetime.now() - self.trained_at).days >= RETRAIN_DAYS
 
@@ -681,19 +774,29 @@ class MotorLSTM:
             # Umbral dinámico calibrado a la volatilidad del ticker.
             # Solo con el tramo de entrenamiento: sigma sobre la serie completa
             # define las etiquetas de validación con un estadístico que ya la vio.
-            label_up, label_down = _calcular_umbral_dinamico(
-                df["Close"].iloc[:split], HORIZONTE_BARRAS)
+            fwd_s = _fwd_relativo(df["Close"], HORIZONTE_BARRAS)
+            if fwd_s is None:
+                log.warning(f"[{self.ticker}] Sin el promedio del universo: no se entrena "
+                            f"(la etiqueta relativa lo necesita)")
+                return False
+            if ETIQUETA_RELATIVA:
+                label_up, label_down = _umbral_relativo(fwd_s.iloc[:split])
+            else:
+                label_up, label_down = _calcular_umbral_dinamico(
+                    df["Close"].iloc[:split], HORIZONTE_BARRAS)
             self._label_up   = label_up
             self._label_down = label_down
-            log.info(f"[{self.ticker}] Umbrales: up={label_up:.3%} down={label_down:.3%}")
+            log.info(f"[{self.ticker}] Etiqueta {ETIQUETA_ID} · umbrales: "
+                     f"up={label_up:.3%} down={label_down:.3%}")
 
-            labels_s    = _make_labels(df["Close"], label_up, label_down, horizon=HORIZONTE_BARRAS)
+            labels_s    = _make_labels(df["Close"], label_up, label_down,
+                                       horizon=HORIZONTE_BARRAS, fwd=fwd_s)
             feat_raw    = df[FEATURE_COLS].values
 
             # Guardrail: conservar modelo y scaler ANTERIORES para comparar al final.
             # Un reentreno solo debe reemplazar al modelo previo si VALIDA MEJOR,
             # para que el auto-reentrenamiento no degrade el modelo persiguiendo ruido.
-            prev_model  = self.model
+            prev_model  = self.model if self._etiqueta == ETIQUETA_ID else None
             prev_scaler = None
             if prev_model is not None and self._scaler_path.exists():
                 try:    prev_scaler = joblib.load(self._scaler_path)
@@ -857,9 +960,11 @@ class MotorLSTM:
                 "label_up":   label_up,
                 "label_down": label_down,
                 "sell_conf_min": self._sell_conf_min,
+                "etiqueta":   ETIQUETA_ID,
             }, self._model_path)
 
             self.trained_at = datetime.now()
+            self._etiqueta  = ETIQUETA_ID
             self._save_state()
             log.info(f"[{self.ticker}] ✅ Entrenamiento OK. best_val_loss={best_loss:.4f}")
             return True
@@ -978,6 +1083,7 @@ class MotorLSTM:
                 # tendencia direccional para el texto del forecast en class25A.
                 "tendencia":     "bajista" if señal == "SELL" else "alcista" if señal == "BUY" else "lateral",
                 "horizonte":     HORIZONTE,
+                "etiqueta":      self._etiqueta,   # relativa_7h = ¿le gana al promedio en una rueda?
                 "precio_actual": _safe(df["Close"].iloc[-1]),
                 "umbral_usado":  round(self._label_up, 4),
                 "sell_conf_min": round(getattr(self, "_sell_conf_min", SELL_CONF_MIN), 4),
