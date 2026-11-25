@@ -1,0 +1,8 @@
+# Los scripts de shell DEBEN mantener finales de línea LF (Unix).
+# Si git los convierte a CRLF, bash falla en Linux con "\r: command not found".
+*.sh    text eol=lf
+*.bash  text eol=lf
+
+# Los scripts de PowerShell son de Windows → CRLF.
+*.ps1   text eol=crlf
+*.conf text eol=lf

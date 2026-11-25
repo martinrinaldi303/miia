@@ -1,0 +1,49 @@
+# MIIA — dependencias Python
+# Derivado de los imports reales de MIIA/*.py (2026-08-05).
+#
+# NOTA: la carpeta MIIA/venv_miiaproject/ pertenece a OTRO proyecto (opencv,
+# absl-py, flatbuffers) y NO contiene estas librerias. app.py usa
+# `PYTHON = sys.executable`, o sea el interprete con el que se lo invoque.
+# Cree un venv nuevo con este archivo.
+
+# ── API / web (miia_chatbot.py) ─────────────────────────────
+fastapi
+uvicorn
+pydantic
+httpx
+requests
+PyJWT
+
+# FastAPI NO trae estos dos, pero los exige segun que se use. Faltaban en este
+# archivo y en el server estaban instalados sueltos, asi que el hueco recien
+# aparecio al montar el entorno local desde cero (15-ago-2026):
+#
+#   python-multipart -> lo pide cualquier endpoint con Form(...). El decorador
+#     de /admin/login (miia_chatbot.py:823) tira RuntimeError al IMPORTARSE, o
+#     sea que sin esto el chatbot entero no levanta.
+#   websockets       -> uvicorn lo necesita para servir WebSocket, que es como
+#     el panel recibe todo en vivo. Venia entrando de rebote como dependencia
+#     de otro paquete; declarado aca deja de depender de esa casualidad.
+python-multipart
+websockets
+
+# ── Datos y persistencia ────────────────────────────────────
+aiomysql
+redis
+
+# ── LSTM predictivo (class44.py) ────────────────────────────
+torch
+numpy
+pandas
+scikit-learn
+joblib
+yfinance
+ta
+
+# ── Sistema ─────────────────────────────────────────────────
+psutil
+
+# ── Solo para modulos legacy/auxiliares (no los usa el core) ─
+# flask
+# flask-cors
+# flask-socketio

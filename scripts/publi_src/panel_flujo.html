@@ -1,0 +1,367 @@
+<meta charset="utf-8">
+<title>MIIA — Flujo Neuronal</title>
+<style>
+  :root{
+    --bg:#05070a; --surface:#0F172A; --surface-low:#080D18;
+    --txt:#94a3b8; --txt-dim:#475569; --accent:#22d3ee;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+       font-family:"JetBrains Mono",ui-monospace,monospace;overflow-x:hidden}
+  .wrap{max-width:1400px;margin:0 auto;padding:16px}
+  .head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+  .head h2{margin:0;font-size:15px;letter-spacing:.14em;text-transform:uppercase;
+           color:#e2e8f0;font-weight:500}
+  .live{display:inline-flex;align-items:center;gap:6px;font-size:10px;
+        letter-spacing:.12em;color:#10b981}
+  .live i{width:6px;height:6px;border-radius:50%;background:#10b981;
+          display:inline-block;animation:p 1.6s infinite}
+  @keyframes p{0%,100%{opacity:1}50%{opacity:.25}}
+  .canvas-box{position:relative;border:1px solid #1e293b;border-radius:10px;
+              overflow:hidden;background:linear-gradient(180deg,#070b12,#04060a)}
+  canvas{display:block;width:100%;height:auto}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px;font-size:10.5px;
+          letter-spacing:.06em;color:var(--txt-dim)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .legend b{width:14px;height:2px;display:inline-block;border-radius:2px}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+         gap:10px;margin-top:12px}
+  .stat{border:1px solid #16202f;border-radius:8px;padding:9px 11px;
+        background:var(--surface-low)}
+  .stat .k{font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;
+           color:var(--txt-dim)}
+  .stat .v{font-size:17px;color:#e2e8f0;margin-top:3px;font-variant-numeric:tabular-nums}
+  .stat .s{font-size:10px;color:var(--txt-dim);margin-top:1px}
+  .note{margin-top:12px;font-size:10.5px;color:var(--txt-dim);line-height:1.6;
+        border-left:2px solid #1e293b;padding-left:10px}
+</style>
+
+<div class="wrap">
+  <div class="head">
+    <h2>Flujo Cognitivo</h2>
+    <span class="live"><i></i>LIVE</span>
+    <span style="font-size:10.5px;color:var(--txt-dim)">
+      arquitectura real · dimensiones reales de cada red
+    </span>
+  </div>
+
+  <div class="canvas-box"><canvas id="flujo"></canvas></div>
+
+  <div class="legend">
+    <span><b style="background:#22d3ee"></b>vector de entrada</span>
+    <span><b style="background:#34d399"></b>señal alcista</span>
+    <span><b style="background:#f43f5e"></b>señal bajista</span>
+    <span><b style="background:#fbbf24"></b>feedback (retorna 24-72 h después)</span>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="note">
+    Las dimensiones son las reales del sistema: class23 crea una red por fuente
+    (mercado&nbsp;64→32→16→8, portfolio&nbsp;32→16→8→4, impacto y cluster&nbsp;12→8→4→4)
+    y class24 usa una capa oculta fija de 64 con salida sigmoide.
+    El arco inferior es el lazo de feedback: una decisión emitida por class25A
+    vuelve como outcome recién cuando vence su horizonte.
+  </div>
+</div>
+
+<script>
+(() => {
+"use strict";
+
+// ── Topología REAL de MIIA ────────────────────────────────────────────────
+// Las dimensiones no son decorativas: salen de miia_cognitive/class23.cpp
+// (h1 = in/2, h2 = in/4, out = in/8, con mínimos) y de class24.cpp (H=64).
+const REDES = [
+  { id:"mercado",   label:"mercado|64",   capas:[64,32,16,8] },
+  { id:"portfolio", label:"portfolio|32", capas:[32,16,8,4]  },
+  { id:"impacto",   label:"impacto|12",   capas:[12,8,4,4]   },
+  { id:"cluster",   label:"cluster|12",   capas:[12,8,4,4]   },
+];
+
+const FUENTES = ["class10","class7","class1","class2","class40","class44"];
+
+const cv  = document.getElementById("flujo");
+const ctx = cv.getContext("2d", { alpha:false });
+let W = 0, H = 0, DPR = 1;
+
+let nodos = [], aristas = [], particulas = [], feedbacks = [];
+let capaEstatica = null;          // campo de conexiones pre-renderizado
+let estado = {                    // lo que llegaría por WS
+  redes:{ mercado:{ema:0.53,sup:26}, portfolio:{ema:0.29,sup:144},
+          impacto:{ema:0.24,sup:99}, cluster:{ema:0.29,sup:233} },
+  senal:"HOLD", conf:0.62, pendientes:29650, tickers:13, msgs:0,
+};
+
+// ── Layout ────────────────────────────────────────────────────────────────
+function construir() {
+  nodos = []; aristas = [];
+  const padY = 40;
+  // Columnas NO equiespaciadas: las cuatro capas de red van juntas (es un solo
+  // bloque conceptual) y las etapas finales necesitan aire para respirar.
+  const FRAC = [0.055, 0.155, 0.29, 0.40, 0.50, 0.60, 0.79, 0.935];
+  const colX = i => FRAC[i] * W;
+
+  // Ruido horizontal: sin esto una capa de 64 nodos se ve como una barra
+  // sólida en vez de una nube. Es lo que le da el aspecto orgánico.
+  const jit = n => n > 24 ? 11 : n > 10 ? 6 : 0;
+
+  const push = (x,y,r,tipo,meta) => (nodos.push({x,y,r,tipo,...meta}), nodos.length-1);
+
+  // col 0 — fuentes
+  const idxFuentes = FUENTES.map((f,i) => {
+    const y = padY + (H-padY*2) * (i+0.5)/FUENTES.length;
+    return push(colX(0), y, 2.6, "fuente", { label:f });
+  });
+
+  // col 1 — class19 (hub)
+  const idx19 = [];
+  for (let i=0;i<14;i++){
+    const y = padY + (H-padY*2) * (i+0.5)/14;
+    idx19.push(push(colX(1), y, 1.8, "filtro", {}));
+  }
+
+  // cols 2..5 — las 4 redes apiladas, con sus dimensiones REALES
+  const bandaH = (H - padY*2) / REDES.length;
+  const capasIdx = [];
+  REDES.forEach((red, ri) => {
+    const y0 = padY + bandaH*ri, y1 = y0 + bandaH;
+    const porCapa = red.capas.map((n, ci) => {
+      const ids = [];
+      const alto = (y1-y0) * 0.62;      // deja aire entre bandas
+      const cy   = (y0+y1)/2;
+      const j    = jit(n);
+      for (let k=0;k<n;k++){
+        const y = n===1 ? cy : cy - alto/2 + alto*k/(n-1);
+        const x = colX(2+ci) + (j ? (Math.random()-0.5)*j : 0);
+        ids.push(push(x, y, n>40?0.85:(n>16?1.15:1.7), "neurona",
+                      { red:red.id, capa:ci }));
+      }
+      return ids;
+    });
+    capasIdx.push({ red, porCapa, y0, y1 });
+  });
+
+  // col 6 — class25A · col 7 — class25B
+  const i25A = push(colX(6), H/2, 7, "ensemble", { label:"class25A" });
+  const i25B = push(colX(7), H/2, 5.5, "lengua",  { label:"class25B" });
+
+  // ── Aristas (muestreadas: el campo denso de los videos es sampleado) ────
+  const link = (a,b,w=1,tipo="fwd") => aristas.push({a,b,w,tipo});
+  const sample = (A,B,frac) => {
+    for (const a of A) for (const b of B) if (Math.random() < frac) link(a,b);
+  };
+
+  sample(idxFuentes, idx19, 0.55);
+  capasIdx.forEach(({porCapa}) => {
+    sample(idx19, porCapa[0], 14/idx19.length/porCapa[0].length*6);
+    for (let c=0;c<porCapa.length-1;c++){
+      const f = porCapa[c].length>32 ? 0.10 : porCapa[c].length>12 ? 0.22 : 0.5;
+      sample(porCapa[c], porCapa[c+1], f);
+    }
+    porCapa[porCapa.length-1].forEach(o => link(o, i25A, 1.4));
+  });
+  link(i25A, i25B, 2.4);
+
+  // lazo de feedback: baja por abajo y vuelve a las capas de entrada
+  capasIdx.forEach(({porCapa}) => {
+    porCapa[0].filter((_,k)=>k%4===0).forEach(n => link(i25B, n, 1, "fb"));
+  });
+
+  prerender();
+}
+
+// El campo de conexiones no cambia: se dibuja UNA vez a un canvas offscreen y
+// después se estampa por frame. Sin esto son ~1500 beziers en cada cuadro.
+function prerender() {
+  capaEstatica = document.createElement("canvas");
+  capaEstatica.width = cv.width; capaEstatica.height = cv.height;
+  const c = capaEstatica.getContext("2d");
+  c.scale(DPR, DPR);
+  c.lineWidth = 0.55;
+  for (const e of aristas) {
+    const a = nodos[e.a], b = nodos[e.b];
+    c.beginPath();
+    if (e.tipo === "fb") {
+      c.strokeStyle = "rgba(251,191,36,0.055)";
+      const arco = H - 12;
+      c.moveTo(a.x, a.y);
+      c.bezierCurveTo(a.x+40, arco, b.x-60, arco, b.x, b.y);
+    } else {
+      c.strokeStyle = "rgba(56,189,248,0.075)";
+      const m = (a.x + b.x)/2;
+      c.moveTo(a.x, a.y);
+      c.bezierCurveTo(m, a.y, m, b.y, b.x, b.y);
+    }
+    c.stroke();
+  }
+}
+
+// ── Partículas ────────────────────────────────────────────────────────────
+function bezier(a, b, t, tipo) {
+  if (tipo === "fb") {
+    const arco = H - 12, u = 1-t;
+    return [ u*u*u*a.x + 3*u*u*t*(a.x+40) + 3*u*t*t*(b.x-60) + t*t*t*b.x,
+             u*u*u*a.y + 3*u*u*t*arco     + 3*u*t*t*arco     + t*t*t*b.y ];
+  }
+  const m = (a.x+b.x)/2, u = 1-t;
+  return [ u*u*u*a.x + 3*u*u*t*m + 3*u*t*t*m + t*t*t*b.x,
+           u*u*u*a.y + 3*u*u*t*a.y + 3*u*t*t*b.y + t*t*t*b.y ];
+}
+
+const COLOR = {
+  in:  [34,211,238],   // vector entrando
+  up:  [52,211,153],   // alcista
+  down:[244, 63, 94],  // bajista
+  fb:  [251,191,36],   // feedback
+};
+
+function emitir(n = 1) {
+  const fwd = aristas.filter(e => e.tipo === "fwd");
+  for (let i=0;i<n;i++){
+    const e = fwd[(Math.random()*fwd.length)|0];
+    if (!e) continue;
+    const dir = estado.senal === "SELL" ? "down" : estado.senal === "BUY" ? "up" : "in";
+    particulas.push({ e, t:0, v:0.006+Math.random()*0.012,
+                      col: Math.random()<0.45 ? "in" : dir });
+  }
+}
+function emitirFeedback() {
+  const fb = aristas.filter(e => e.tipo === "fb");
+  const e = fb[(Math.random()*fb.length)|0];
+  if (e) feedbacks.push({ e, t:0, v:0.0035+Math.random()*0.003 });
+}
+
+// ── Loop ──────────────────────────────────────────────────────────────────
+let ultimo = 0, acum = 0;
+function frame(ts) {
+  const dt = Math.min(50, ts - ultimo); ultimo = ts;
+
+  ctx.fillStyle = "#04060a";
+  ctx.fillRect(0,0,W,H);
+  if (capaEstatica) ctx.drawImage(capaEstatica, 0,0, W,H);
+
+  // nodos
+  for (const n of nodos) {
+    let a = 0.5, col = "148,163,184";
+    if (n.tipo === "fuente")   { a=0.9;  col="34,211,238"; }
+    if (n.tipo === "ensemble") { a=0.95; col = estado.senal==="SELL" ? "244,63,94"
+                                             : estado.senal==="BUY" ? "52,211,153"
+                                             : "148,163,184"; }
+    if (n.tipo === "lengua")   { a=0.85; col="168,85,247"; }
+    if (n.tipo === "neurona")  {
+      const e = (estado.redes[n.red]||{}).ema ?? 0.5;
+      a = 0.25 + e*0.5;
+      col = e > 0.5 ? "52,211,153" : "56,189,248";
+    }
+    ctx.beginPath();
+    ctx.fillStyle = `rgba(${col},${a})`;
+    ctx.arc(n.x, n.y, n.r, 0, 6.2832);
+    ctx.fill();
+    if (n.r > 4) {
+      ctx.beginPath();
+      ctx.strokeStyle = `rgba(${col},0.28)`; ctx.lineWidth = 1;
+      ctx.arc(n.x, n.y, n.r + 5 + Math.sin(ts/420)*2, 0, 6.2832);
+      ctx.stroke();
+    }
+  }
+
+  // partículas hacia adelante
+  ctx.globalCompositeOperation = "lighter";
+  for (let i=particulas.length-1;i>=0;i--){
+    const p = particulas[i];
+    p.t += p.v * dt/16;
+    if (p.t >= 1) { particulas.splice(i,1); continue; }
+    const [x,y] = bezier(nodos[p.e.a], nodos[p.e.b], p.t, "fwd");
+    const c = COLOR[p.col];
+    const g = ctx.createRadialGradient(x,y,0,x,y,3.4);
+    g.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},0.95)`);
+    g.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x,y,3.4,0,6.2832); ctx.fill();
+  }
+  // feedback
+  for (let i=feedbacks.length-1;i>=0;i--){
+    const p = feedbacks[i];
+    p.t += p.v * dt/16;
+    if (p.t >= 1) { feedbacks.splice(i,1); continue; }
+    const [x,y] = bezier(nodos[p.e.a], nodos[p.e.b], p.t, "fb");
+    const c = COLOR.fb;
+    const g = ctx.createRadialGradient(x,y,0,x,y,4);
+    g.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},0.9)`);
+    g.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x,y,4,0,6.2832); ctx.fill();
+  }
+  ctx.globalCompositeOperation = "source-over";
+
+  // etiquetas: sobre cada banda, alineadas a la primera columna de neuronas
+  ctx.font = "9.5px ui-monospace,monospace";
+  const bandaH = (H-80)/REDES.length;
+  REDES.forEach((r,i) => {
+    const y = 40 + bandaH*i + 12;
+    ctx.fillStyle = "rgba(148,163,184,0.9)";
+    ctx.fillText(r.label, W*0.29 - 4, y);
+    ctx.fillStyle = "rgba(71,85,105,0.8)";
+    ctx.fillText(r.capas.join(" → "), W*0.29 - 4, y + 11);
+  });
+  // etiquetas de etapa
+  ctx.font = "8.5px ui-monospace,monospace";
+  ctx.fillStyle = "rgba(71,85,105,0.85)";
+  [["fuentes",0.055],["class19",0.155],["class25A",0.79],["class25B",0.935]]
+    .forEach(([t,f]) => ctx.fillText(t, f*W - t.length*2.4, H - 8));
+
+  // emisión: proporcional al caudal reportado
+  acum += dt;
+  if (acum > 90) { acum = 0; emitir(1 + (Math.random()*2|0)); }
+  if (Math.random() < 0.006) emitirFeedback();
+
+  requestAnimationFrame(frame);
+}
+
+// ── Panel de números ──────────────────────────────────────────────────────
+function pintarStats(){
+  const s = estado;
+  const box = (k,v,sub="") =>
+    `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div>
+     <div class="s">${sub}</div></div>`;
+  document.getElementById("stats").innerHTML =
+    box("Señal actual", s.senal, `confianza ${(s.conf*100).toFixed(0)}%`) +
+    box("Instrumentos", s.tickers, "ventana por ticker · 5 s") +
+    box("Feedback en vuelo", s.pendientes.toLocaleString("es"), "esperan vencimiento") +
+    box("Redes activas", Object.keys(s.redes).length,
+        Object.entries(s.redes).map(([k,v])=>`${k} ${v.ema.toFixed(2)}`).join(" · "));
+}
+
+// ── API para datos reales ─────────────────────────────────────────────────
+// El agregador del server publica un tick por segundo a ui_stream; el front
+// solo tiene que llamar a esto. Sin llamadas, corre en modo demostración.
+window.MIIA_FLOW = {
+  update(payload){
+    if (!payload) return;
+    if (payload.redes)      estado.redes      = payload.redes;
+    if (payload.senal)      estado.senal      = payload.senal;
+    if (payload.conf!=null) estado.conf       = payload.conf;
+    if (payload.pendientes!=null) estado.pendientes = payload.pendientes;
+    if (payload.msgs)       emitir(Math.min(40, payload.msgs));
+    if (payload.feedback_cerrados)
+      for (let i=0;i<Math.min(10,payload.feedback_cerrados);i++) emitirFeedback();
+    pintarStats();
+  }
+};
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────
+function resize(){
+  DPR = Math.min(2, window.devicePixelRatio||1);
+  const box = cv.parentElement.getBoundingClientRect();
+  W = Math.max(720, box.width); H = Math.round(Math.min(640, Math.max(420, W*0.50)));
+  cv.width = W*DPR; cv.height = H*DPR;
+  cv.style.height = H+"px";
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  construir();
+}
+window.addEventListener("resize", () => { clearTimeout(window.__rt);
+  window.__rt = setTimeout(resize, 180); });
+resize(); pintarStats(); requestAnimationFrame(frame);
+})();
+</script>

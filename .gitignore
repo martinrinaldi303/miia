@@ -1,0 +1,161 @@
+# ── Dependencias ──────────────────────────────────────────
+node_modules/
+MIIA/node_modules/
+MIIA/venv_miiaproject/
+
+# ── Binarios y compilados ──────────────────────────────────
+*.exe
+*.dll
+*.pdb
+*.obj
+*.o
+*.lib
+MIIA_MotoresVectoriales/bin/
+MIIA_MotoresVectoriales/obj/
+miia_cognitive/build/
+
+# ── Logs y reportes generados ─────────────────────────────
+operador/aprendizaje/logs/
+operador/aprendizaje/reports/
+operador/aprendizaje/raw/
+operador/aprendizaje/json_guardados/
+operador/aprendizaje/metrics/
+operador/aprendizaje/resultados_busqueda/
+operador/aprendizaje/cache/
+operador/aprendizaje/central/
+operador/aprendizaje/conversaciones/
+operador/aprendizaje/usuarios/
+operador/aprendizaje/memoria/
+operador/aprendizaje/state/
+operador/aprendizaje/audio/
+
+# ── Modelos ML (grandes, se regeneran) ────────────────────
+operador/aprendizaje/models/
+
+# ── Backups y dumps ────────────────────────────────────────
+backups/
+redis/dump.rdb
+*.zip
+*.bak
+
+# ── Certificados SSL (no al repo) ─────────────────────────
+scripts/certs/
+
+# ── Config con secretos ────────────────────────────────────
+operador/aprendizaje/config/sql.ini
+
+# ── Python cache ──────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+
+# ── Sistema ───────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+logs/
+
+# Secretos — NUNCA subir
+.env
+*.env
+operador/aprendizaje/config/.env
+
+# ── Agregado el 11-sep-2026, antes del primer commit ──────────────────────
+# Lo que el .gitignore original dejaba pasar, verificado con find y grep sobre
+# el árbol: un SEGUNDO sql.ini con credenciales (MIIA_MotoresVectoriales/…) y
+# el venv de MIIA (~1 GB) entraban al commit.
+venv*/
+miia_cognitive/build*/
+sql.ini
+.claude/settings.local.json
+*.pdb
+*.log
+*.bak[0-9]*
+*.bak-*
+# Cuarentena de lo que se servía por error desde la raíz web hasta el 8-sep:
+# el prototipo React de AI Studio y 12 copias de index.html en claro.
+scripts/publi_bak/
+# Pesos de modelos: se regeneran y pueden pesar cientos de MB.
+*.pt
+*.pth
+*.pkl
+*.joblib
+*.h5
+*.onnx
+
+# ── Runtime a cualquier profundidad (11-sep, tras el primer commit) ───────
+# Las entradas de arriba anclan estas carpetas a operador/…; la copia anidada
+# en MIIA_MotoresVectoriales/operador/ entraba entera (1.385 reportes).
+**/operador/aprendizaje/reports/
+**/operador/aprendizaje/metrics/
+**/operador/aprendizaje/json_guardados/
+**/operador/aprendizaje/logs/
+**/operador/aprendizaje/raw/
+**/operador/aprendizaje/cache/
+**/operador/aprendizaje/state/
+operador/aprendizaje/central_bus/
+# Temporales de Office (archivos abiertos en Word al momento del commit)
+~$*
+~*.tmp
+# Volcados de la base. Pesan ~1,4 GB y traen DATOS PERSONALES: mails de
+# usuarios, hashes bcrypt, api_keys y las IPs con geolocalizacion de los 844
+# visitantes de `clientes`. NUNCA van a git, ni siquiera a un repo privado.
+# El esquema SIN datos si esta versionado, en docs/esquema_miia_cognitiva.sql.
+MIIA_backup_*.sql
+*.sql.gz
+
+# ── Runtime que se escapaba por un nivel de carpeta (25-sep-2026) ─────────
+# Hallado al revisar el repo despues de levantar la copia local: una corrida
+# dejaba 3.380 archivos sin trackear, 13 MB. La regla de arriba dice
+# `operador/aprendizaje/metrics/`, pero class36 escribe en
+# `operador/aprendizaje/EMOCIONES/metrics/` — fallaba por un nivel.
+#
+# Peor aun: habia 15 de esos archivos YA COMMITEADOS (14 reflexiones de
+# class27 y el resumen de class36) contra 3.331 que no, o sea que el repo
+# versionaba una muestra arbitraria de la salida de una corrida vieja y cada
+# arranque local ensuciaba el `git status`. Se sacaron con `git rm --cached`
+# (siguen en disco; los modulos los reescriben al arrancar).
+#
+# Son tres rutas, y ninguna tiene nada que versionar: class27 escribe una
+# reflexion por ciclo, class36 un resumen por ping y class28 su memoria.
+operador/aprendizaje/snapshots/
+operador/aprendizaje/emociones/
+operador/aprendizaje/conciencia_memoria.json
+# Con `**/` por la misma razon que el bloque del 11-sep: la copia anidada en
+# MIIA_MotoresVectoriales/operador/ no la agarra la ruta anclada.
+**/operador/aprendizaje/snapshots/
+**/operador/aprendizaje/emociones/
+**/operador/aprendizaje/conciencia_memoria.json
+
+# Muestras de vector que deja class3 al correr (1 de cada 200). En produccion
+# van a /opt/miia/operador/aprendizaje/; al correr las pruebas en la PC caen
+# dentro de MIIA_MotoresVectoriales/ porque la ruta sale de AppContext.BaseDirectory.
+vector_class3_*.json
+MIIA_MotoresVectoriales/operador/
+
+# ── Salida de build de las pruebas C# (27-sep-2026) ───────────────────────
+# Las reglas del 11-sep anclaban bin/ y obj/ a MIIA_MotoresVectoriales/, asi que
+# los proyectos de sim17 y sim21 dejaban 44 archivos sin trackear: .deps.json,
+# los .cache de MSBuild, los .cs generados y los nuget.g.props, que ademas traen
+# rutas ABSOLUTAS de esta maquina (C:\Users\martin\.nuget\...). Nada de eso se
+# versiona: `dotnet run` lo regenera. Verificado que no habia nada trackeado
+# adentro de un bin/ u obj/ antes de poner la regla ancha.
+**/bin/
+**/obj/
+
+# ── El PDF del proyecto sale de git (27-sep-2026, decision de Martin) ─────
+# 18 MB de binario que es una EXPORTACION del .docx: versionar los dos guarda el
+# mismo contenido dos veces, y cada re-exportacion sumaba otro blob entero (ya
+# habia 3 versiones = 51 MB en la historia). Vive solo en el disco de Martin.
+# Lo que SI queda versionado es docs/Proyecto_MIIA_pdf_texto.txt (470 KB, 11.865
+# lineas), que es con lo que se busca: el grep sigue funcionando igual.
+# OJO: un clone NO va a tener este PDF. No es que se perdio.
+# El .docx (66 MB) sigue versionado, que es la fuente editable.
+mapa del proyecto/Proyecto MIIA.pdf
+redis/dump.rdb
+redis/*.rdb
+redis/*.aof
+docs/simulaciones/datos/etiquetas_sim44.json
+docs/simulaciones/datos/lstm_relativa_barras.json
+docs/simulaciones/datos/datos_externos_yahoo.json
+docs/simulaciones/datos/cripto_yahoo.json
+docs/simulaciones/datos/otros_activos_yahoo.json

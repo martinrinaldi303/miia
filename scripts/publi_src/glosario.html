@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Glosario de métricas financieras — Sharpe, Sortino, Alpha, Beta y Drawdown | MIIA</title>
+<meta name="description" content="Qué significan Sharpe, Sortino, Alpha, Beta, CAGR, max drawdown y base rate en un backtesting, cómo se calculan y qué errores de interpretación son frecuentes."/>
+<link rel="canonical" href="https://miiaia.com/glosario.html"/>
+<meta property="og:type" content="article"/>
+<meta property="og:title" content="Glosario de métricas financieras aplicadas al backtesting"/>
+<meta property="og:description" content="Sharpe, Sortino, Alpha, Beta, CAGR, drawdown y base rate explicados con sus fórmulas y sus trampas de interpretación."/>
+<meta property="og:url" content="https://miiaia.com/glosario.html"/>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Calibri', Calibri, sans-serif; font-size: 12pt; color: #1a1a1a; background: #f9f9f9; line-height: 1.65; }
+  .page { max-width: 820px; margin: 0 auto; background: #fff; padding: 48px 56px; box-shadow: 0 2px 16px rgba(0,0,0,0.08); min-height: 100vh; }
+  h1 { font-size: 22pt; font-weight: 700; color: #1a3a6b; border-bottom: 2px solid #1a3a6b; padding-bottom: 10px; margin-bottom: 8px; }
+  .updated { font-size: 10pt; color: #718096; margin-bottom: 24px; }
+  h2 { font-size: 15pt; font-weight: 700; color: #1a3a6b; margin-top: 32px; margin-bottom: 10px; border-left: 4px solid #1a3a6b; padding-left: 10px; }
+  h3 { font-size: 12pt; font-weight: 700; color: #2c5282; margin-top: 18px; margin-bottom: 6px; }
+  p { margin-bottom: 10px; }
+  ul, ol { margin-left: 24px; margin-bottom: 10px; }
+  li { margin-bottom: 5px; }
+  .formula { background: #F7FAFC; border-left: 3px solid #4A5568; padding: 10px 16px; margin: 10px 0; font-family: 'Consolas', monospace; font-size: 10.5pt; overflow-x: auto; }
+  .trampa { background: #FFFAF0; border: 1px solid #F6AD55; border-radius: 6px; padding: 12px 18px; margin: 12px 0; font-size: 11pt; }
+  .trampa strong { color: #9C4221; }
+  .riesgo { background: #FFF5F5; border: 2px solid #FC8181; border-radius: 8px; padding: 18px 22px; margin: 24px 0; color: #742A2A; }
+  nav.breadcrumb { font-size: 10pt; color: #718096; margin-bottom: 18px; }
+  nav.breadcrumb a { color: #2c5282; }
+  footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid #E2E8F0; font-size: 10pt; color: #718096; }
+  footer a { color: #2c5282; margin-right: 14px; }
+</style>
+</head>
+<body>
+<div class="page">
+<nav class="breadcrumb"><a href="/">Inicio</a> › Glosario de métricas</nav>
+
+<h1>Glosario de métricas de backtesting</h1>
+<p class="updated">Guía de referencia · Actualizado: julio 2026</p>
+
+<p>Un panel de backtesting muestra media docena de números que parecen decir lo mismo y no lo dicen. Esta página explica qué mide cada uno, cómo se calcula y —sobre todo— en qué condiciones deja de ser confiable. Los ejemplos usan las convenciones que aplica MIIA en su propio panel.</p>
+
+<h2>Retorno y crecimiento</h2>
+
+<h3>Retorno promedio</h3>
+<p>El promedio de los retornos de cada operación o de cada período. Es el ladrillo con el que se construyen casi todas las demás métricas, y por eso conviene saber exactamente <em>sobre qué población</em> está promediado.</p>
+<div class="trampa">
+<strong>Trampa frecuente:</strong> no es lo mismo el "retorno promedio por señal" que el "retorno promedio diario". Si un sistema emite 300 señales por día y se promedian todas juntas, ese número describe una señal típica, no un día de mercado. Anualizarlo multiplicándolo por 252 (días hábiles) mezcla dos unidades distintas y produce cifras que parecen rendimientos pero no lo son.
+</div>
+
+<h3>CAGR (tasa de crecimiento anual compuesta)</h3>
+<p>El rendimiento anualizado equivalente: a qué ritmo constante habría tenido que crecer el capital para llegar del valor inicial al final en el período medido.</p>
+<div class="formula">CAGR = ((valor_final / valor_inicial) ^ (252 / días_medidos) − 1) × 100</div>
+<div class="trampa">
+<strong>Trampa frecuente:</strong> el exponente. Con 12 días de historia, <code>252/12 = 21</code>: cualquier deriva diminuta se eleva a la 21 y sale amplificada a dos dígitos. Una pérdida de 0,016 % diaria se convierte en un −4 % anual que suena catastrófico y en realidad es ruido. Un CAGR calculado sobre menos de un trimestre de datos dice más sobre el tamaño de la muestra que sobre la estrategia.
+</div>
+
+<h2>Retorno ajustado por riesgo</h2>
+
+<h3>Sharpe ratio</h3>
+<p>Cuánto retorno se obtiene por cada unidad de volatilidad asumida. Es la medida estándar para comparar estrategias con perfiles de riesgo distintos.</p>
+<div class="formula">Sharpe = (retorno_medio − tasa_libre_riesgo) / desvío_estándar × √252</div>
+<p>Interpretación habitual: por debajo de 1 es flojo, entre 1 y 2 es razonable, por encima de 2 es muy bueno. Un Sharpe negativo indica que la estrategia rindió menos que el activo sin riesgo.</p>
+<div class="trampa">
+<strong>Trampa frecuente:</strong> cuando todos los retornos del período son casi idénticos, el desvío estándar tiende a cero y el Sharpe explota hacia infinito por aritmética de punto flotante, no por mérito. Un Sharpe de 40 casi siempre es un divisor degenerado, no una estrategia excepcional.
+</div>
+
+<h3>Sortino ratio</h3>
+<p>Variante del Sharpe que castiga solo la volatilidad <em>a la baja</em>. La lógica: a un inversor no le molesta que su cartera suba de forma errática; le molesta que baje. El Sortino divide por el desvío de los retornos negativos únicamente.</p>
+<div class="formula">Sortino = retorno_medio / desvío_a_la_baja × √252</div>
+<p>Si en el período no hubo ningún retorno negativo, el desvío a la baja es cero y el Sortino tiende a infinito. Eso no es un error de cálculo: es la lectura literal de "no hubo caídas en la muestra", y normalmente significa que la muestra es demasiado corta.</p>
+
+<h3>Max drawdown</h3>
+<p>La caída porcentual más grande desde un pico hasta el valle siguiente. Responde a la pregunta práctica: en el peor momento, ¿cuánto llegó a perder quien entró justo antes?</p>
+<div class="formula">drawdown(t) = (equity(t) − máximo_previo) / máximo_previo × 100</div>
+<p>Es la métrica más honesta sobre la tolerancia psicológica que exige una estrategia. Un sistema con CAGR excelente y drawdown de 60 % es, en la práctica, inoperable para la mayoría de las personas.</p>
+
+<h2>Comparación contra el mercado</h2>
+
+<h3>Beta</h3>
+<p>La sensibilidad de la estrategia a los movimientos del mercado de referencia. Beta 1,0 significa que se mueve igual que el índice; 0,5, que amortigua la mitad; por encima de 1, que amplifica.</p>
+<div class="formula">Beta = covarianza(estrategia, mercado) / varianza(mercado)</div>
+
+<h3>Alpha</h3>
+<p>El exceso de retorno que queda después de descontar lo que se explica por la exposición al mercado. Es el número que pretende aislar la habilidad del gestor o del modelo.</p>
+<div class="formula">Alpha = (retorno_estrategia − Beta × retorno_mercado) × 252 × 100</div>
+<div class="trampa">
+<strong>Trampa frecuente —y la más costosa:</strong> si el retorno de la estrategia está calculado sobre una población que lo mantiene pegado a cero (por ejemplo, un promedio dominado por señales neutrales que no abren posición), la fórmula colapsa a <code>Alpha ≈ −Beta × retorno_mercado</code>. A partir de ahí, cuanto más sube el mercado, más negativo se vuelve el alpha, y es aritméticamente imposible que dé positivo. El indicador ya no mide la estrategia: mide el mercado con signo cambiado. Antes de interpretar un alpha en caída sostenida conviene verificar que ambos lados de la resta estén medidos en la misma unidad y sobre el mismo período.
+</div>
+
+<h2>Calidad de la predicción</h2>
+
+<h3>Precisión (accuracy)</h3>
+<p>Porcentaje de señales que resultaron correctas sobre el total de señales <em>verificadas</em>. El detalle importa: una señal emitida hoy con horizonte de cinco días no es ni un acierto ni un error todavía, y contarla como fallo subestima el sistema mientras que excluirla del denominador lo infla.</p>
+
+<h3>Base rate y edge</h3>
+<p>La precisión aislada engaña. En un mercado con tendencia alcista sostenida, "predecir siempre que sube" puede acertar el 70 % de las veces sin ningún modelo detrás. Ese 70 % es el <strong>base rate</strong>: el piso que hay que superar para demostrar habilidad.</p>
+<div class="formula">edge = precisión_del_modelo − base_rate</div>
+<p>Un edge positivo indica ventaja real sobre la estrategia ingenua. Un edge de cero o negativo significa que el modelo, por sofisticado que sea internamente, no le está ganando a seguir la tendencia. Es la comparación más incómoda y la más informativa.</p>
+
+<h3>El azar con la misma mezcla (cómo mide MIIA)</h3>
+<p>El base rate sirve contra un modelo que puede apostar siempre al mismo lado. MIIA no puede: su ranking compra los instrumentos que mejor ve y vende los que peor ve, mitad y mitad. Si los elegidos —los comprados <em>y</em> los vendidos— le ganan al promedio más seguido por cómo se mueve el mercado, "decir siempre que le gana" acierta más del 50 % sin que eso sea una estrategia que MIIA pudiera seguir. Por eso la vara es lo que acertaría un sistema <strong>sin información</strong> con la misma proporción de compras (q) y la misma proporción de casos que le ganaron al promedio (p):</p>
+<div class="formula">azar = q·p + (1 − q)·(1 − p) &nbsp;·&nbsp; edge = precisión − azar</div>
+<p>Con mitad compras y mitad ventas, el azar vale 50 % y el edge es la precisión menos 50. Si el modelo apostara casi siempre al mismo lado, el azar se acerca al base rate y el edge no puede inflarse por acompañar al mercado. Y vale lo mismo que antes: el edge se lee junto a su margen de ruido, nunca solo.</p>
+
+<h3>Confianza de la señal</h3>
+<p>Un puntaje interno del modelo sobre su propia certeza. Conviene tratarlo como un ordenamiento relativo, no como una probabilidad calibrada: que una señal marque 70 % no significa que acierte 7 de cada 10 veces, salvo que el modelo haya sido explícitamente calibrado para eso.</p>
+<div class="trampa">
+<strong>Trampa frecuente:</strong> promediar la confianza de todas las señales incluyendo las neutrales. Una señal de "mantener" tiene confianza cercana al 50 % por construcción —es el punto de indiferencia entre comprar y vender—, así que si las neutrales son mayoría, el promedio global se desplaza hacia 50 % y parece que el modelo perdió convicción. No la perdió: cambió la composición de la muestra. La confianza informativa es la de las señales direccionales.
+</div>
+
+<div class="riesgo">
+<strong>Advertencia.</strong> Ninguna de estas métricas predice rendimientos futuros. Todas describen el pasado de una muestra concreta, y son especialmente frágiles cuando esa muestra es corta. Este material es informativo y educativo: no constituye asesoramiento financiero ni una recomendación de inversión.
+</div>
+
+<footer>
+<a href="/">Inicio</a><a href="/metodologia.html">Metodología</a><a href="/legal.html">Aviso legal</a>
+</footer>
+</div>
+</body>
+</html>

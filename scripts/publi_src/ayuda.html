@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MIIA — Guía de Usuario</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Calibri', 'Calibri (Cuerpo)', Calibri, sans-serif;
+    font-size: 12pt;
+    color: #1a1a1a;
+    background: #f9f9f9;
+    line-height: 1.65;
+  }
+  .page {
+    max-width: 820px;
+    margin: 0 auto;
+    background: #fff;
+    padding: 48px 56px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+    min-height: 100vh;
+  }
+  h1 {
+    font-family: 'Calibri', sans-serif;
+    font-size: 22pt;
+    font-weight: 700;
+    color: #1a3a6b;
+    border-bottom: 2px solid #1a3a6b;
+    padding-bottom: 10px;
+    margin-bottom: 24px;
+  }
+  h2 {
+    font-family: 'Calibri', sans-serif;
+    font-size: 15pt;
+    font-weight: 700;
+    color: #1a3a6b;
+    margin-top: 32px;
+    margin-bottom: 10px;
+    border-left: 4px solid #1a3a6b;
+    padding-left: 10px;
+  }
+  h3 {
+    font-family: 'Calibri', sans-serif;
+    font-size: 12pt;
+    font-weight: 700;
+    color: #2c5282;
+    margin-top: 18px;
+    margin-bottom: 6px;
+  }
+  p { margin-bottom: 10px; font-size: 12pt; }
+  ul, ol { margin-left: 24px; margin-bottom: 10px; }
+  li { margin-bottom: 5px; font-size: 12pt; }
+  .intro-box {
+    background: #EBF4FF;
+    border: 1px solid #BEE3F8;
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin-bottom: 28px;
+    font-size: 12pt;
+    color: #2b4c7e;
+  }
+  .nota {
+    background: #FFFBEB;
+    border-left: 4px solid #F6AD55;
+    padding: 10px 16px;
+    margin: 12px 0;
+    font-size: 12pt;
+    color: #744210;
+    border-radius: 0 4px 4px 0;
+  }
+  .consejo {
+    background: #F0FFF4;
+    border-left: 4px solid #68D391;
+    padding: 10px 16px;
+    margin: 12px 0;
+    font-size: 12pt;
+    color: #22543D;
+    border-radius: 0 4px 4px 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+    font-size: 12pt;
+  }
+  th {
+    background: #1a3a6b;
+    color: #fff;
+    font-weight: 700;
+    text-align: left;
+    padding: 8px 12px;
+  }
+  td { padding: 7px 12px; border-bottom: 1px solid #e2e8f0; }
+  tr:nth-child(even) td { background: #f7fafc; }
+  .badge {
+    display: inline-block;
+    font-size: 10pt;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-right: 4px;
+  }
+  .badge-buy  { background: #C6F6D5; color: #22543D; }
+  .badge-sell { background: #FED7D7; color: #742A2A; }
+  .badge-hold { background: #FEFCBF; color: #744210; }
+  .badge-pro  { background: #BEE3F8; color: #2A4365; }
+  .badge-free { background: #E2E8F0; color: #4A5568; }
+  .divider { border: none; border-top: 1px solid #e2e8f0; margin: 28px 0; }
+  .toc { background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px 24px; margin-bottom: 28px; }
+  .toc h3 { color: #1a3a6b; margin-top: 0; }
+  .toc ol { margin-left: 18px; }
+  .toc li { margin-bottom: 4px; }
+  .toc a { color: #2b6cb0; text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .footer-ayuda {
+    margin-top: 48px;
+    padding-top: 16px;
+    border-top: 1px solid #e2e8f0;
+    font-size: 10pt;
+    color: #a0aec0;
+    text-align: center;
+  }
+  @media (max-width: 600px) {
+    .page { padding: 24px 16px; }
+    h1 { font-size: 18pt; }
+    h2 { font-size: 13pt; }
+  }
+
+  /* ── Publicidad ───────────────────────────────────────────────────────────
+     El borde y la etiqueta "Publicidad" son requisito, no adorno: la politica
+     de Google exige que el anuncio sea distinguible del contenido del sitio.
+     En una pagina de aviso legal esa distincion importa todavia mas. */
+  .ad-slot { margin: 34px 0 10px; border: 1px dashed #d8dee6; border-radius: 6px; padding: 7px; background: #fcfcfd; }
+  .ad-lbl  { font-size: 8.5pt; letter-spacing: .06em; text-transform: uppercase; color: #a0aec0; margin-bottom: 5px; }
+  .ad-slot ins { display: block; width: 100%; }
+</style>
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-0000000000000000"
+     crossorigin="anonymous"></script>
+</head>
+<body>
+<div class="page">
+
+  <h1>MIIA — Guía Completa de la Interfaz</h1>
+
+  <div class="intro-box">
+    <strong>MIIA (Mano Invisible Inteligencia Artificial)</strong> es un sistema de análisis de mercados financieros que combina redes neuronales LSTM, análisis de sentimiento de noticias, motores lingüísticos con IA y modelos bayesianos para generar señales de inversión en tiempo real. Esta guía explica en detalle cada sección de la interfaz.
+  </div>
+
+  <div class="toc">
+    <h3>Índice de contenidos</h3>
+    <ol>
+      <li><a href="#nav">Barra de Navegación</a></li>
+      <li><a href="#dashboard">Dashboard Principal</a></li>
+      <li><a href="#chat">Chat con MIIA</a></li>
+      <li><a href="#markets">Markets (Mercados)</a></li>
+      <li><a href="#portfolio">Portfolio</a></li>
+      <li><a href="#backtesting">Backtesting</a></li>
+      <li><a href="#señales">Cómo interpretar las señales</a></li>
+      <li><a href="#suscripcion">Plan Gratuito vs. MIIA Pro</a></li>
+      <li><a href="#admin">Panel de Administrador</a></li>
+      <li><a href="#faq">Preguntas frecuentes</a></li>
+    </ol>
+  </div>
+
+  <hr class="divider"/>
+
+  <!-- 1. NAV -->
+  <h2 id="nav">1. Barra de Navegación</h2>
+  <p>La barra superior de MIIA está siempre visible y contiene los accesos principales al sistema.</p>
+
+  <h3>Logo y nombre</h3>
+  <p>En el extremo izquierdo se encuentra el logotipo de MIIA. Hacer clic en él restablece la vista al Dashboard.</p>
+
+  <h3>Menú de secciones</h3>
+  <p>Los enlaces del menú son: <strong>Dashboard</strong>, <strong>Chat</strong>, <strong>Markets</strong>, <strong>AI Engines</strong> (solo administradores), <strong>Portfolio</strong> y <strong>Backtesting</strong>. Hacer clic en cualquiera cambia el panel principal sin recargar la página.</p>
+
+  <h3>Botón Ayuda</h3>
+  <p>El botón marcado con <strong>?</strong> abre esta misma página en una nueva pestaña. Siempre disponible para usuarios gratuitos y suscriptores.</p>
+
+  <h3>Botón Mercado Pago</h3>
+  <p>Abre el modal de suscripción para contratar MIIA Pro directamente, sin necesidad de llegar al límite de consultas gratuitas.</p>
+
+  <h3>Botón Iniciar sesión (Google)</h3>
+  <p>Permite autenticarse con una cuenta de Google para sincronizar el historial de señales y gestionar la suscripción asociada a tu cuenta.</p>
+
+  <h3>Indicador de riesgo</h3>
+  <p>El badge naranja en el extremo derecho (<em>RIESGO –</em>) muestra el nivel de riesgo global calculado por los motores de MIIA. Puede ser: BAJO, MODERADO, ALTO o CRÍTICO. Se actualiza automáticamente a medida que el sistema procesa nuevas señales del mercado.</p>
+
+  <h3>Contador de consultas gratuitas</h3>
+  <p>Visible en naranja para usuarios sin suscripción. Muestra cuántos usos gratis restan antes de que se active el límite del plan gratuito (5 usos que se renuevan cada 6 horas). Cuando llega a cero se muestra en rojo e indica en cuántas horas se renuevan.</p>
+
+  <h3>Botón Pro</h3>
+  <p>Aparece únicamente para usuarios sin suscripción activa. Al hacer clic abre el modal de planes para suscribirse a MIIA Pro.</p>
+
+  <h3>Banner de publicidad</h3>
+  <p>Visible bajo la barra de navegación para usuarios gratuitos. Muestra contenido relevante generado por el propio algoritmo de MIIA basado en las últimas señales detectadas. Se puede cerrar con el botón ✕ y se actualiza cada 45 segundos con información diferente.</p>
+
+  <hr class="divider"/>
+
+  <!-- 2. DASHBOARD -->
+  <h2 id="dashboard">2. Dashboard Principal</h2>
+  <p>El Dashboard es la vista central de MIIA. Integra en una sola pantalla todos los datos en tiempo real: señales, noticias, métricas del sistema y recomendaciones.</p>
+
+  <h3>Ticker Tape (cinta de cotizaciones)</h3>
+  <p>La franja animada ubicada debajo de la barra de navegación muestra los tickers de activos que el sistema está monitoreando activamente, junto con la última señal emitida (BUY, SELL o HOLD) y el precio detectado. Se actualiza en tiempo real a medida que el motor LSTM genera nuevas predicciones.</p>
+
+  <h3>Panel de Señales LSTM</h3>
+  <p>Muestra las últimas señales generadas por el motor de redes neuronales (class44). Cada señal incluye:</p>
+  <ul>
+    <li><strong>Ticker:</strong> símbolo del activo analizado (ej: AAPL, XLK, SPY).</li>
+    <li><strong>Señal:</strong> <span class="badge badge-buy">BUY</span> compra recomendada, <span class="badge badge-sell">SELL</span> venta recomendada, <span class="badge badge-hold">HOLD</span> mantener posición.</li>
+    <li><strong>Confianza:</strong> porcentaje que indica qué tan seguro está el modelo de su predicción. Por encima del 65% se considera señal fiable.</li>
+    <li><strong>Barra de confianza:</strong> representación visual del nivel de confianza.</li>
+  </ul>
+
+  <h3>Feed de eventos en tiempo real</h3>
+  <p>Columna que registra cronológicamente todos los eventos del sistema: señales LSTM, análisis de sentimiento, decisiones del motor lingüístico y alertas de mercado. Cada entrada tiene un color según su origen:</p>
+  <ul>
+    <li><strong>Azul:</strong> señal LSTM del motor predictivo.</li>
+    <li><strong>Violeta:</strong> análisis de sentimiento de noticias.</li>
+    <li><strong>Dorado:</strong> decisión del motor lingüístico (class25B con Gemini).</li>
+    <li><strong>Rojo:</strong> alerta de mercado (caída, crisis o evento relevante).</li>
+  </ul>
+
+  <h3>Métricas del sistema</h3>
+  <p>Tiles informativos que muestran el estado general de MIIA: precisión histórica de señales, cantidad de decisiones tomadas, nivel de confianza promedio y riesgo global actual.</p>
+
+  <h3>Panel de Noticias</h3>
+  <p>Noticias financieras procesadas por el motor de sentimiento (class45). Cada noticia muestra:</p>
+  <ul>
+    <li>Titular y resumen.</li>
+    <li>Ticker relacionado.</li>
+    <li>Sentimiento: <strong>Bullish</strong> (positivo), <strong>Bearish</strong> (negativo) o <strong>Neutral</strong>.</li>
+    <li>Fecha y fuente.</li>
+  </ul>
+  <p>El borde superior de cada tarjeta es verde para noticias bullish, rojo para bearish y gris para neutral.</p>
+
+  <h3>Alertas de mercado</h3>
+  <p>Cuando MIIA detecta patrones de caída sectorial, crisis generalizada o recuperación, aparece una alerta automática con nivel de severidad (INFO, ATENCIÓN, PELIGRO o CRÍTICO), las razones técnicas detectadas y una recomendación de acción.</p>
+
+  <h3>Calculadora de inversión</h3>
+  <p>Permite ingresar un monto en USD y calcular cuánto representaría en el portfolio recomendado por MIIA, distribuido entre los activos seleccionados por el sistema.</p>
+
+  <hr class="divider"/>
+
+  <!-- 3. CHAT -->
+  <h2 id="chat">3. Chat con MIIA</h2>
+  <p>El panel de Chat permite hacerle preguntas directas al sistema de IA de MIIA sobre el mercado, tickers específicos, estrategias o cualquier duda financiera.</p>
+
+  <h3>Cómo usar el chat</h3>
+  <p>Escribí tu pregunta en el campo de texto en la parte inferior y presioná <strong>Enter</strong> o el botón de envío. MIIA procesa la consulta a través del motor lingüístico (class25B) que utiliza Google Gemini 2.5 Flash como modelo de lenguaje base, enriquecido con el contexto de las señales del mercado en tiempo real.</p>
+
+  <h3>Tipos de preguntas que podés hacer</h3>
+  <ul>
+    <li>¿Qué señal tiene AAPL en este momento?</li>
+    <li>¿Cuál es el riesgo actual del mercado tecnológico?</li>
+    <li>Explicame el análisis de sentimiento de las últimas noticias.</li>
+    <li>¿Qué portfolio me recomendás con perfil conservador?</li>
+    <li>¿Por qué MIIA recomienda SELL en XLK?</li>
+    <li>¿Cuál es la predicción para los próximos 7 días en SPY?</li>
+  </ul>
+
+  <div class="nota">
+    <strong>Usuarios gratuitos:</strong> el chat está limitado a 5 usos que se renuevan cada 6 horas. Una vez consumidos, el sistema muestra el modal de suscripción y bloquea el acceso a los gráficos y al chat hasta que se suscriba o pasen las 6 horas para renovar el cupo gratuito.
+  </div>
+
+  <h3>Historial del chat</h3>
+  <p>Las últimas 6 interacciones se incluyen automáticamente como contexto en cada nueva pregunta, lo que permite conversaciones con continuidad. El historial se limpia al recargar la página.</p>
+
+  <h3>Recomendaciones de portfolio en el chat</h3>
+  <p>Si le pedís a MIIA una recomendación de portfolio, el sistema responde con una tarjeta visual que muestra los activos seleccionados, su peso porcentual, el cambio reciente y el nivel de riesgo por activo.</p>
+
+  <hr class="divider"/>
+
+  <!-- 4. MARKETS -->
+  <h2 id="markets">4. Markets (Mercados)</h2>
+  <p>El panel de Markets muestra información detallada sobre los activos y sectores que MIIA monitorea activamente.</p>
+
+  <h3>Cotizaciones en tiempo real</h3>
+  <p>Precios y variaciones porcentuales de los tickers principales, actualizados a medida que el motor de datos (class7) los procesa. Los precios provienen de las APIs de AlphaVantage, TwelveData y Polygon.io.</p>
+
+  <h3>Estado de sectores</h3>
+  <p>Mapa de calor de los sectores del mercado (Tecnología, Energía, Salud, Finanzas, etc.) con su variación porcentual y la señal predominante del sistema. Permite identificar rápidamente qué sectores están en expansión o contracción.</p>
+
+  <h3>Análisis de sentimiento por ticker</h3>
+  <p>Para cada activo monitoreado se muestra el sentimiento agregado de las últimas noticias procesadas, expresado como porcentaje positivo / negativo y el ticker del ETF o acción correspondiente.</p>
+
+  <hr class="divider"/>
+
+  <!-- 5. PORTFOLIO -->
+  <h2 id="portfolio">5. Portfolio</h2>
+  <p>El panel de Portfolio muestra la recomendación de cartera generada automáticamente por MIIA en base a las condiciones actuales del mercado.</p>
+
+  <h3>Portfolio recomendado</h3>
+  <p>MIIA calcula una distribución óptima de activos considerando el nivel de riesgo actual, la confianza de las señales y los sectores con mejor rendimiento esperado. El portfolio se actualiza automáticamente con cada ciclo de análisis.</p>
+
+  <h3>Datos mostrados por activo</h3>
+  <ul>
+    <li><strong>Símbolo:</strong> ticker del activo (ej: QQQ, XLK, GLD).</li>
+    <li><strong>Sector:</strong> categoría del mercado al que pertenece.</li>
+    <li><strong>Peso:</strong> porcentaje de asignación recomendada sobre el capital total.</li>
+    <li><strong>Cambio reciente:</strong> variación porcentual del precio en el período analizado.</li>
+    <li><strong>Estado del sector:</strong> si el sector está en tendencia alcista, bajista o lateral.</li>
+  </ul>
+
+  <h3>Métricas del portfolio</h3>
+  <ul>
+    <li><strong>Estrategia:</strong> el perfil de riesgo aplicado (conservador, moderado, agresivo).</li>
+    <li><strong>Riesgo del portfolio:</strong> porcentaje de riesgo global calculado por el sistema.</li>
+    <li><strong>Confianza:</strong> nivel de certeza del modelo sobre esta distribución.</li>
+    <li><strong>Interés estimado:</strong> rendimiento diario, mensual y anual proyectado en base al historial real de precios, ponderado por el peso de cada activo.</li>
+  </ul>
+
+  <h3>Historial de portfolios</h3>
+  <p>Tabla con los portfolios recomendados anteriormente, incluyendo fecha, estrategia y rendimiento posterior observado. Permite evaluar la efectividad del sistema a lo largo del tiempo.</p>
+
+  <hr class="divider"/>
+
+  <!-- 6. BACKTESTING -->
+  <h2 id="backtesting">6. Backtesting</h2>
+  <p>El módulo de backtesting permite simular el rendimiento histórico de las señales de MIIA aplicadas a datos reales del mercado.</p>
+
+  <h3>Cómo ejecutar un backtest</h3>
+  <ol>
+    <li>Seleccioná el ticker o activo que querés evaluar.</li>
+    <li>Definí el período de análisis (fecha de inicio y fin).</li>
+    <li>Elegí el capital inicial simulado.</li>
+    <li>Presioná el botón <strong>Ejecutar Backtest</strong>.</li>
+  </ol>
+  <p>El sistema aplica las mismas señales BUY/SELL/HOLD que habría generado MIIA en ese período usando datos históricos reales, y calcula el rendimiento resultante comparado con el activo sin gestión.</p>
+
+  <h3>Resultados del backtest</h3>
+  <ul>
+    <li><strong>Gráfico de equity:</strong> evolución del capital simulado en el tiempo.</li>
+    <li><strong>Gráfico de drawdown:</strong> caída máxima desde el pico de capital (riesgo de pérdida).</li>
+    <li><strong>Precisión:</strong> porcentaje de señales que resultaron correctas.</li>
+    <li><strong>Retorno total:</strong> ganancia o pérdida acumulada en el período.</li>
+    <li><strong>Tabla de operaciones:</strong> detalle de cada señal, el precio de entrada/salida y el resultado.</li>
+  </ul>
+
+  <div class="consejo">
+    <strong>Consejo:</strong> los resultados del backtesting son indicativos y no garantizan rendimientos futuros. El mercado financiero tiene variables impredecibles que el modelo no puede anticipar en todos los casos.
+  </div>
+
+  <hr class="divider"/>
+
+  <!-- 7. SEÑALES -->
+  <h2 id="señales">7. Cómo interpretar las señales de MIIA</h2>
+
+  <table>
+    <thead><tr><th>Señal</th><th>Significado</th><th>Acción sugerida</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge badge-buy">BUY</span></td><td>El modelo detecta condiciones favorables para comprar el activo.</td><td>Evaluar ingreso de posición según perfil de riesgo personal.</td></tr>
+      <tr><td><span class="badge badge-sell">SELL</span></td><td>El modelo detecta condiciones de salida o reversión bajista.</td><td>Evaluar cierre de posición o stop-loss preventivo.</td></tr>
+      <tr><td><span class="badge badge-hold">HOLD</span></td><td>El modelo no detecta cambio de tendencia significativo.</td><td>Mantener posición actual sin modificaciones.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Nivel de confianza</h3>
+  <p>El porcentaje de confianza indica cuán seguro está el ensamble de modelos de su predicción:</p>
+  <ul>
+    <li><strong>Mayor a 75%:</strong> señal de alta confianza — el sistema tiene evidencia fuerte.</li>
+    <li><strong>Entre 55% y 75%:</strong> señal moderada — considerar contexto adicional antes de actuar.</li>
+    <li><strong>Menor a 55%:</strong> señal débil — mercado incierto, mayor precaución recomendada.</li>
+  </ul>
+
+  <h3>Niveles de alerta del mercado</h3>
+  <ul>
+    <li><strong>INFO:</strong> condición de recuperación o señal positiva detectada.</li>
+    <li><strong>ATENCIÓN:</strong> caída sectorial moderada o aumento de riesgo.</li>
+    <li><strong>PELIGRO:</strong> caída parcial del mercado, múltiples sectores afectados.</li>
+    <li><strong>CRÍTICO:</strong> crisis generalizada o depresión prolongada detectada por el sistema.</li>
+  </ul>
+
+  <div class="nota">
+    <strong>Importante:</strong> las señales de MIIA son herramientas de apoyo a la decisión de inversión, no asesoramiento financiero profesional. Toda decisión de inversión es responsabilidad exclusiva del usuario.
+  </div>
+
+  <hr class="divider"/>
+
+  <!-- 8. SUSCRIPCIÓN -->
+  <h2 id="suscripcion">8. Plan Gratuito vs. MIIA Pro</h2>
+
+  <table>
+    <thead><tr><th>Función</th><th><span class="badge badge-free">Gratuito</span></th><th><span class="badge badge-pro">MIIA Pro</span></th></tr></thead>
+    <tbody>
+      <tr><td>Señales en tiempo real</td><td>✓ (visibles en ticker)</td><td>✓ Completo</td></tr>
+      <tr><td>Chat con MIIA</td><td>5 usos cada 6 horas</td><td>Ilimitado</td></tr>
+      <tr><td>Gráficos del dashboard</td><td>Bloqueados tras 5 usos</td><td>Siempre activos</td></tr>
+      <tr><td>Portfolio recomendado</td><td>Limitado</td><td>✓ Completo con historial</td></tr>
+      <tr><td>Backtesting</td><td>Limitado</td><td>✓ Completo</td></tr>
+      <tr><td>Panel Markets</td><td>Limitado</td><td>✓ Completo</td></tr>
+      <tr><td>Alertas de mercado</td><td>Visibles</td><td>✓ Con explicación IA</td></tr>
+      <tr><td>Publicidad</td><td>✓ (banner superior)</td><td>Sin publicidad</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Planes disponibles</h3>
+  <ul>
+    <li><strong>Plan Mensual:</strong> USD 20 por mes. Pago único por período, sin renovación automática.</li>
+    <li><strong>Plan Anual:</strong> USD 180 por año (equivalente a USD 15/mes). Ahorrás USD 60 respecto al plan mensual. Sin renovación automática.</li>
+  </ul>
+
+  <h3>Cómo suscribirse</h3>
+  <ol>
+    <li>Hacer clic en el botón <strong>Suscribirse Pro</strong> en la barra de navegación.</li>
+    <li>Seleccionar el plan deseado (mensual o anual).</li>
+    <li>Hacer clic en <strong>Continuar con Mercado Pago</strong>.</li>
+    <li>Completar el pago en la página segura de Mercado Pago que se abre.</li>
+    <li>Recargar la página de MIIA para activar el acceso Pro.</li>
+  </ol>
+
+  <hr class="divider"/>
+
+  <!-- 9. ADMIN -->
+  <h2 id="admin">9. Panel de Administrador</h2>
+  <p>El Panel de Administrador es exclusivo para la cuenta <strong>admin@example.com</strong> y los administradores que ésta habilite.</p>
+
+  <h3>Acceso</h3>
+  <p>Al iniciar sesión con la cuenta administradora, aparece automáticamente el ítem <strong>Admin</strong> en el menú de navegación y el ítem <strong>AI Engines</strong> (oculto para usuarios regulares). El acceso está protegido tanto en el frontend como en el backend.</p>
+
+  <h3>Consumo de recursos del servidor</h3>
+  <p>Muestra en tiempo real el porcentaje de uso de CPU, el uso de memoria RAM, el tiempo de actividad del servidor (uptime) y la cantidad de conexiones WebSocket activas. Se actualiza automáticamente cada 10 segundos.</p>
+
+  <h3>Flujo en tiempo real del proyecto</h3>
+  <p>Log en tiempo real de todos los eventos que procesa MIIA: señales recibidas por WebSocket, tipos de mensajes, tickers involucrados y decisiones del sistema. Permite monitorear el funcionamiento interno del sistema en operación.</p>
+
+  <h3>Gestión de usuarios</h3>
+  <p>Tabla con todos los usuarios registrados que han interactuado con el sistema, incluyendo su ID, email (si iniciaron sesión con Google), plan de suscripción, estado y cantidad de consultas realizadas. El administrador puede:</p>
+  <ul>
+    <li><strong>Banear usuarios:</strong> bloquea el acceso del usuario al sistema.</li>
+    <li><strong>Desbanear usuarios:</strong> restaura el acceso de un usuario baneado.</li>
+    <li><strong>Refrescar la lista:</strong> actualiza los datos en tiempo real.</li>
+  </ul>
+
+  <h3>Gestión de administradores</h3>
+  <p>El administrador principal puede delegar permisos de administración a otras cuentas. Para agregar un nuevo administrador:</p>
+  <ol>
+    <li>Ingresar el email de la cuenta en el campo habilitado.</li>
+    <li>Hacer clic en <strong>+ Agregar Admin</strong>.</li>
+  </ol>
+  <p>Los nuevos administradores recibirán acceso completo al panel admin la próxima vez que inicien sesión con ese email en MIIA.</p>
+
+  <h3>Panel AI Engines</h3>
+  <p>Vista exclusiva para administradores que muestra el estado en tiempo real de cada motor del sistema:</p>
+  <ul>
+    <li><strong>LSTM Predictor (class44):</strong> modelos cargados, señal actual, log de actividad.</li>
+    <li><strong>Sentimiento (class45):</strong> tickers en análisis, estado del motor NLP.</li>
+    <li><strong>Motor Lingüístico (class25B):</strong> patrones aprendidos, estado de Gemini.</li>
+    <li><strong>Motor Cuantitativo (class25A):</strong> señales procesadas, scores del ensamble.</li>
+    <li><strong>Motor de Datos (class7):</strong> cotizaciones procesadas, fuentes activas.</li>
+    <li><strong>Orquestador (class46):</strong> estado general del sistema, latencia.</li>
+  </ul>
+
+  <hr class="divider"/>
+
+  <!-- 10. FAQ -->
+  <h2 id="faq">10. Preguntas Frecuentes</h2>
+
+  <h3>¿Los datos de los gráficos son reales?</h3>
+  <p>Sí. El dashboard principal de MIIA recibe datos en tiempo real a través de WebSocket desde el backend. Los precios provienen de las APIs de AlphaVantage, TwelveData y Polygon.io. Las señales son generadas por los modelos de IA del sistema.</p>
+
+  <h3>¿Con qué frecuencia se actualizan las señales?</h3>
+  <p>Las señales se generan continuamente mientras el sistema está en ejecución. El motor LSTM procesa señales cada vez que llegan nuevos datos de precios. El análisis de sentimiento se actualiza cada vez que se procesan nuevas noticias financieras.</p>
+
+  <h3>¿Qué hago si el WebSocket aparece como "OFF"?</h3>
+  <p>El indicador "WebSocket: OFF" en el footer significa que la conexión en tiempo real con el servidor de MIIA no está activa. Verificar que el servidor esté corriendo. El sistema intenta reconectarse automáticamente cada pocos segundos.</p>
+
+  <h3>¿Puedo usar MIIA en el celular?</h3>
+  <p>Sí, la interfaz es responsive y se adapta a pantallas pequeñas. En dispositivos móviles el menú lateral no aparece y algunos paneles se reorganizan en columna única para mejor legibilidad.</p>
+
+  <h3>¿Qué pasa si mi suscripción expira?</h3>
+  <p>Al expirar el plan, la cuenta vuelve automáticamente al modo gratuito con el límite de 5 usos que se renuevan cada 6 horas y publicidad visible. Para renovar, basta con realizar un nuevo pago desde el botón de Suscribirse Pro.</p>
+
+  <h3>¿MIIA garantiza ganancias?</h3>
+  <p>No. MIIA es una herramienta de análisis y apoyo a la decisión de inversión. Las señales están basadas en modelos matemáticos y estadísticos que trabajan sobre datos históricos y actuales, pero el mercado financiero tiene variables impredecibles. Toda inversión conlleva riesgo.</p>
+
+  <hr class="divider"/>
+
+
+  <!-- Publicidad. Sin `data-ad-slot` explicito: en estas paginas de contenido
+       se deja que los Anuncios Automaticos de AdSense elijan la ubicacion, que
+       es menos intrusivo que fijarla a mano en medio de un texto legal. -->
+  <div class="ad-slot">
+    <div class="ad-lbl">Publicidad</div>
+    <ins class="adsbygoogle" style="display:block"
+         data-ad-client="ca-pub-0000000000000000"
+         data-ad-format="fluid"
+         data-ad-layout-key="-fb+5w+4e-db+86"></ins>
+  </div>
+  <script>try{(adsbygoogle=window.adsbygoogle||[]).push({})}catch(e){}</script>
+
+  <div class="footer-ayuda">
+    MIIA AI Ecosystem v4.0 — Documentación de usuario<br/>
+    Para soporte técnico: admin@example.com
+  </div>
+
+</div>
+</body>
+</html>

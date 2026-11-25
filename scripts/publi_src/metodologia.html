@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Metodología: cómo MIIA genera y verifica sus señales de mercado</title>
+<meta name="description" content="Arquitectura de MIIA: motor LSTM, análisis de sentimiento de noticias, ensamble cuantitativo y detección de régimen, con el circuito de verificación que mide cada señal contra el precio real."/>
+<link rel="canonical" href="https://miiaia.com/metodologia.html"/>
+<meta property="og:type" content="article"/>
+<meta property="og:title" content="Metodología: cómo MIIA genera y verifica sus señales"/>
+<meta property="og:description" content="Los cuatro motores que producen cada señal y el circuito de verificación que las contrasta contra el precio real."/>
+<meta property="og:url" content="https://miiaia.com/metodologia.html"/>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Calibri', Calibri, sans-serif; font-size: 12pt; color: #1a1a1a; background: #f9f9f9; line-height: 1.65; }
+  .page { max-width: 820px; margin: 0 auto; background: #fff; padding: 48px 56px; box-shadow: 0 2px 16px rgba(0,0,0,0.08); min-height: 100vh; }
+  h1 { font-size: 22pt; font-weight: 700; color: #1a3a6b; border-bottom: 2px solid #1a3a6b; padding-bottom: 10px; margin-bottom: 8px; }
+  .updated { font-size: 10pt; color: #718096; margin-bottom: 24px; }
+  h2 { font-size: 15pt; font-weight: 700; color: #1a3a6b; margin-top: 32px; margin-bottom: 10px; border-left: 4px solid #1a3a6b; padding-left: 10px; }
+  h3 { font-size: 12pt; font-weight: 700; color: #2c5282; margin-top: 18px; margin-bottom: 6px; }
+  p { margin-bottom: 10px; }
+  ul, ol { margin-left: 24px; margin-bottom: 10px; }
+  li { margin-bottom: 5px; }
+  .flujo { background: #F7FAFC; border-left: 3px solid #4A5568; padding: 14px 18px; margin: 14px 0; font-family: 'Consolas', monospace; font-size: 10pt; line-height: 1.5; overflow-x: auto; white-space: pre; }
+  .limite { background: #FFFAF0; border: 1px solid #F6AD55; border-radius: 6px; padding: 12px 18px; margin: 12px 0; font-size: 11pt; }
+  .limite strong { color: #9C4221; }
+  .riesgo { background: #FFF5F5; border: 2px solid #FC8181; border-radius: 8px; padding: 18px 22px; margin: 24px 0; color: #742A2A; }
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 11pt; }
+  th, td { border: 1px solid #E2E8F0; padding: 8px 10px; text-align: left; }
+  th { background: #EDF2F7; color: #1a3a6b; font-weight: 700; }
+  nav.breadcrumb { font-size: 10pt; color: #718096; margin-bottom: 18px; }
+  nav.breadcrumb a { color: #2c5282; }
+  footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid #E2E8F0; font-size: 10pt; color: #718096; }
+  footer a { color: #2c5282; margin-right: 14px; }
+</style>
+</head>
+<body>
+<div class="page">
+<nav class="breadcrumb"><a href="/">Inicio</a> › Metodología</nav>
+
+<h1>Metodología</h1>
+<p class="updated">Documento técnico · Actualizado: julio 2026</p>
+
+<p>MIIA (Mano Invisible Inteligencia Artificial) es una plataforma de información financiera asistida por IA. No opera, no ejecuta órdenes y no administra dinero: procesa datos de mercado y publica señales de apoyo al análisis. Esta página describe cómo se produce cada señal y, más importante, cómo se verifica después contra lo que efectivamente pasó.</p>
+
+<h2>1. Qué observa el sistema</h2>
+<p>El universo de instrumentos son ETFs sectoriales y regionales de alta liquidez, elegidos porque tienen historia de precios densa y cobertura de noticias suficiente para que el análisis de sentimiento tenga material:</p>
+<table>
+<tr><th>Símbolo</th><th>Exposición</th></tr>
+<tr><td>XLK</td><td>Tecnología (EE.UU.)</td></tr>
+<tr><td>XLF</td><td>Sector financiero (EE.UU.)</td></tr>
+<tr><td>XLE</td><td>Energía (EE.UU.)</td></tr>
+<tr><td>XLV</td><td>Salud (EE.UU.)</td></tr>
+<tr><td>XLY</td><td>Consumo discrecional (EE.UU.)</td></tr>
+<tr><td>ARGT</td><td>Renta variable argentina</td></tr>
+<tr><td>EWZ</td><td>Renta variable brasileña</td></tr>
+</table>
+
+<h2>2. Los cuatro motores</h2>
+<p>Cada señal es el resultado de combinar cuatro análisis independientes. Ninguno decide solo.</p>
+
+<h3>Motor predictivo (LSTM)</h3>
+<p>Una red neuronal recurrente de memoria larga y corta, entrenada sobre series temporales de precio por instrumento. Las capas LSTM están diseñadas para retener dependencias a lo largo de la secuencia, lo que las hace apropiadas para datos donde el orden importa. La salida es una distribución sobre tres clases —comprar, vender, mantener— con un puntaje de confianza asociado. Los modelos se reentrenan de forma continua a medida que entran datos nuevos.</p>
+
+<h3>Motor de sentimiento de noticias</h3>
+<p>Recolecta noticias financieras, las asocia a instrumentos mediante un diccionario de palabras clave por sector, y clasifica cada una como alcista, bajista o neutral. Además del signo, estima el impacto mediático: actividad, alcance, engagement y viralidad. La lógica es que una noticia negativa marginal en un medio pequeño no debería pesar lo mismo que una portada replicada por toda la prensa.</p>
+
+<h3>Motor cuantitativo (ensamble)</h3>
+<p>Consolida las salidas de varias redes neuronales especializadas mediante un ensamble de pesos adaptativos: las redes que vienen acertando ganan peso, las que fallan lo pierden. Sobre eso corre una capa de memoria bayesiana que registra qué combinaciones de condiciones de mercado precedieron a qué resultados. Es la pieza que emite la decisión numérica final.</p>
+
+<h3>Motor lingüístico</h3>
+<p>Traduce la decisión cuantitativa a lenguaje natural y construye la explicación que acompaña a cada señal. También mantiene una memoria causal —qué causa se asoció a qué efecto— que se refuerza con el tiempo, y alimenta la interfaz conversacional.</p>
+
+<h2>3. Detección de régimen</h2>
+<p>En paralelo, un motor de clustering temporal clasifica el estado general del mercado en regímenes (alcista, bajista, lateral) con una confianza y una medida de estabilidad. El régimen no genera señales por sí mismo: modula las que producen los demás motores. Un mercado lateral, por ejemplo, hace que el sistema exija más evidencia antes de emitir una señal direccional, y en consecuencia produce muchas más señales de "mantener".</p>
+
+<h2>4. Cómo se verifica cada señal</h2>
+<p>Esta es la parte que distingue un backtesting honesto de una demostración. Toda señal emitida queda registrada con su precio de entrada, su horizonte temporal y su confianza declarada. Cuando el horizonte vence, el sistema busca el precio real de ese instrumento en ese momento y compara.</p>
+<div class="flujo">señal emitida  →  registro (precio entrada, horizonte, confianza)
+                    ↓
+              espera del horizonte
+                    ↓
+        precio real observado en el mercado
+                    ↓
+     acierto / error / descartado (sin precio fiable)
+                    ↓
+   métricas + realimentación a la memoria bayesiana</div>
+<p>Tres consecuencias de este diseño:</p>
+<ul>
+<li><strong>Existen señales pendientes.</strong> Una señal emitida hoy con horizonte de varios días todavía no es ni acierto ni error. Contarla como fallo subestimaría el sistema; ignorarla del denominador lo inflaría. Se cuenta aparte.</li>
+<li><strong>Las señales neutrales no se verifican.</strong> "Mantener" no abre posición, así que no hay retorno que medir. Se registran, pero no entran en las métricas de precisión.</li>
+<li><strong>El resultado vuelve al modelo.</strong> El acierto o error realimenta los pesos del ensamble y la memoria bayesiana. Sin ese circuito cerrado, el sistema no aprendería de sus propios errores.</li>
+</ul>
+
+<h2>5. Contra qué se compara</h2>
+<p>Una precisión alta aislada no demuestra nada. Si el mercado sube el 70 % de los días, un sistema que dijera "compra" siempre acertaría el 70 % sin ningún modelo detrás. Por eso el panel publica el <strong>base rate</strong> —la precisión de esa estrategia ingenua— junto a la precisión del modelo, y la diferencia entre ambos: el edge. Es la única comparación que responde a la pregunta que importa, que es si el sistema aporta algo por encima de seguir la tendencia.</p>
+<p>Las métricas de riesgo/retorno (Sharpe, Sortino, CAGR, drawdown, alpha y beta) se calculan sobre los retornos verificados y se contrastan contra un benchmark de mercado. Están explicadas una por una en el <a href="/glosario.html">glosario de métricas</a>.</p>
+
+<h2>6. Límites conocidos</h2>
+<div class="limite">
+<strong>Muestra corta.</strong> Las métricas anualizadas (CAGR, alpha) requieren meses de historia verificada para ser informativas. Calculadas sobre pocas semanas, amplifican ruido: el factor de anualización eleva cualquier deriva mínima a cifras de dos dígitos. Cuando el sistema no tiene historia suficiente, el panel muestra un guion en lugar de un número. Esa ausencia es deliberada.
+</div>
+<div class="limite">
+<strong>La confianza no es una probabilidad calibrada.</strong> El puntaje de confianza ordena señales entre sí, pero un 70 % no significa "acierta 7 de cada 10 veces".
+</div>
+<div class="limite">
+<strong>Sesgo de régimen.</strong> El sistema aprendió sobre el régimen de mercado en el que operó. Un cambio estructural degrada su desempeño hasta que acumula datos suficientes del régimen nuevo.
+</div>
+<div class="limite">
+<strong>Dependencia de fuentes externas.</strong> Precios y noticias vienen de proveedores de terceros. Una interrupción o un dato erróneo aguas arriba se propaga al análisis.
+</div>
+
+<h2>7. Rendimiento de los portafolios y su banda de error</h2>
+<p>El panel de Portfolio publica, debajo del interés proyectado, una tarjeta de <strong>evidencia</strong> que compara lo que los portafolios rindieron de verdad contra el mercado. Acá se explica cómo se lee, porque cada número va con su banda de error y esa banda no es un detalle.</p>
+
+<h3>Contra qué se mide</h3>
+<p>Cada portafolio se compara contra dos referencias: la <strong>canasta equiponderada</strong> de los instrumentos del universo —el promedio simple, sin ninguna ventaja de selección— y una <strong>aproximación al S&amp;P 500</strong> construida con ETFs sectoriales ponderados por peso de índice. La columna «diferencia» es lo que el portafolio hizo por encima o por debajo de la canasta: la única que responde si elegir aportó algo.</p>
+
+<h3>Por qué hay tres bandas, y cuál vale</h3>
+<p>La base guarda cientos de miles de filas de portafolios, pero la enorme mayoría son copias de la misma cartera repetida minuto a minuto. Tratar cada copia como una observación independiente produce una banda de error <em>ingenua</em>, falsamente angosta. Por eso se publican tres:</p>
+<ul>
+<li><strong>Ingenua.</strong> Cuenta cada fila como un dato. Está a la vista sólo para que se vea lo engañosamente chica que sale; no se usa para concluir nada.</li>
+<li><strong>Por sesión.</strong> Agrupa las copias por rueda de mercado, lo que reduce buena parte del inflado.</li>
+<li><strong>Sin solapar.</strong> La que vale. Usa ventanas temporales que no comparten días, así cada número es una observación de verdad. Las ventanas de 5 y 20 sesiones se solapan entre sí —comparten casi todos sus días—, de modo que una banda calculada sobre ellas sale optimista; la de ventanas sin solapar lo corrige.</li>
+</ul>
+
+<h3>El alfa nunca va solo</h3>
+<p>El alfa anualizado siempre se muestra junto a su estadístico <em>t</em>. Un «+7,5 % anual» con t = 0,79 no es un logro: es ruido. Para afirmar una ventaja hace falta |t| &gt; 1,96. Con pocas sesiones el mínimo alfa detectable es enorme —del orden de decenas de por ciento anual—, así que la falta de significancia no dice que el sistema sea malo: dice que todavía no hay muestra suficiente para distinguirlo del azar. Ningún número de esta tarjeta está anualizado salvo el alfa, y ése va con su t al lado.</p>
+
+<h3>El interés proyectado de una cartera</h3>
+<p>Cuando el chat arma una cartera, el panel muestra su interés diario, mensual y anual. El diario es la variación real del día, ponderada por el peso de cada activo. El mensual y el anual son una <strong>proyección lineal</strong> de ese día: no son una rentabilidad esperada ni garantizada. Un solo día no predice un mes ni un año, y por eso el número aparece siempre con esa aclaración.</p>
+
+<div class="riesgo">
+<strong>MIIA no es un asesor financiero.</strong> Es un modelo estadístico en versión beta que puede fallar y falla. No predice el mercado con certeza. La información publicada es de apoyo al análisis y la decisión de invertir es siempre y exclusivamente del usuario. Los desarrolladores no se responsabilizan por pérdidas ni por decisiones tomadas a partir de este contenido.
+</div>
+
+<footer>
+<a href="/">Inicio</a><a href="/glosario.html">Glosario</a><a href="/legal.html">Aviso legal</a>
+</footer>
+</div>
+</body>
+</html>

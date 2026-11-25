@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ============================================================
+       sim17 — el vector de class10, con el universo dinámico
+       ============================================================
+       Compila scripts/class10.cs DE PRODUCCIÓN dentro de la prueba, el
+       mismo criterio que sim7 con los .cpp de class23/24: la prueba
+       EJECUTA el código que corre, no una reimplementación que puede
+       diverger sin que nadie lo note.
+
+       class10.cs declara su propio Main (MotorVectorialTester, el
+       entrypoint real del motor .NET), así que hace falta StartupObject
+       para desambiguar — igual que en MIIA_MotoresVectoriales.csproj.
+       Nada de Pipeline10 ni RealtimeBus10 se instancia: sólo se llama al
+       extractor estático, así que no se abre una conexión a Redis.
+       ============================================================ -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <StartupObject>Sim17</StartupObject>
+    <AssemblyName>sim17</AssemblyName>
+    <RootNamespace>Sim17Ns</RootNamespace>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <NoWarn>CS0618</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="StackExchange.Redis" Version="2.7.33" />
+    <!-- class10.cs referencia Serilog y Program18 (de class18.cs): el
+         entrypoint real arranca los dos motores en el mismo proceso. -->
+    <PackageReference Include="Serilog" Version="4.3.1" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
+    <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
+    <PackageReference Include="System.Text.Json" Version="9.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\..\scripts\class10.cs" />
+    <Compile Include="..\..\..\scripts\class18.cs" />
+    <!-- Desde el 26-sep el entrypoint de class10.cs arranca tambien class40 y
+         class41 (detras de CLASS40_ACTIVO / CLASS41_ACTIVO), asi que referencia
+         Program y Program41. Sin estos dos, la prueba no compila aunque el
+         codigo de produccion este bien: es acoplamiento del ENTRYPOINT, no del
+         vector que sim17 mide. -->
+    <Compile Include="..\..\..\scripts\class40.cs" />
+    <Compile Include="..\..\..\scripts\class41.cs" />
+    <!-- Y desde el 26-sep tambien class3 (detras de CLASS3_ACTIVO). Mismo
+         acoplamiento del entrypoint que class40/class41. -->
+    <Compile Include="..\..\..\scripts\class3.cs" />
+    <Compile Include="Sim17.cs" />
+  </ItemGroup>
+
+</Project>

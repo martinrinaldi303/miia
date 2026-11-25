@@ -1,0 +1,11 @@
+{
+ "_origen": "MIIA_backup_2026-09-15-00-29-30.sql",
+ "_generado_por": "docs/simulaciones/sim12_rendimiento_api.py --medir",
+ "filas": 384188,
+ "shadow": 64101,
+ "verificadas_direccionales": 150635,
+ "con_retorno_y_ts": 147001,
+ "dias_distintos": 49,
+ "por_label_modo": {"None": 6904, "absoluto": 37723, "relativo_v1": 1447, "relativo": 104561},
+ "consultas_por_request": 4
+}

@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
+<meta name="theme-color" content="#080c14"/>
+<title>BRAIT — Motor de Análisis Inteligente</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#080c14;color:#e2e8f0;
+          font-family:'Inter',system-ui,sans-serif;font-size:13px}
+
+/* ── VARIABLES ───────────────────────────────────────── */
+:root{
+  --bg:#080c14; --s1:#0d1422; --s2:#111b2e; --s3:#162036;
+  --bd:#1e3050; --bd2:#253a5e;
+  --tx:#e2e8f0; --mt:#64748b; --dim:#334155;
+  --ac:#2563eb; --ac2:#06b6d4;
+  --ok:#10b981; --err:#ef4444; --warn:#f59e0b;
+  --r:10px;
+}
+
+/* ── SCROLLBAR ───────────────────────────────────────── */
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:2px}
+
+/* ── GLASS ───────────────────────────────────────────── */
+.glass{background:rgba(13,20,34,.85);border:1px solid var(--bd);backdrop-filter:blur(16px)}
+
+/* ── GRADIENT TEXT ───────────────────────────────────── */
+.grad{background:linear-gradient(135deg,#2563eb,#06b6d4);
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+
+/* ── PULSE DOTS ──────────────────────────────────────── */
+@keyframes pls-green{0%{box-shadow:0 0 0 0 rgba(16,185,129,.7)}70%{box-shadow:0 0 0 5px rgba(16,185,129,0)}100%{box-shadow:0 0 0 0 rgba(16,185,129,0)}}
+@keyframes pls-blue {0%{box-shadow:0 0 0 0 rgba(37,99,235,.7)} 70%{box-shadow:0 0 0 5px rgba(37,99,235,0)} 100%{box-shadow:0 0 0 0 rgba(37,99,235,0)}}
+@keyframes pls-warn {0%{box-shadow:0 0 0 0 rgba(245,158,11,.7)} 70%{box-shadow:0 0 0 5px rgba(245,158,11,0)} 100%{box-shadow:0 0 0 0 rgba(245,158,11,0)}}
+.dot-ok  {width:6px;height:6px;border-radius:50%;background:var(--ok);  animation:pls-green 2s infinite}
+.dot-blue{width:6px;height:6px;border-radius:50%;background:var(--ac);  animation:pls-blue  2s infinite}
+.dot-warn{width:6px;height:6px;border-radius:50%;background:var(--warn);animation:pls-warn  2s infinite}
+.dot-off {width:6px;height:6px;border-radius:50%;background:var(--dim)}
+
+/* ── LAYOUT ──────────────────────────────────────────── */
+body{display:flex;flex-direction:column}
+
+/* HEADER */
+header{
+  flex-shrink:0;height:52px;
+  display:flex;align-items:center;gap:12px;
+  padding:0 18px;
+  background:rgba(8,12,20,.9);
+  border-bottom:1px solid var(--bd);
+  backdrop-filter:blur(20px);
+  position:relative;z-index:100;
+}
+.brait-logo{
+  font-size:22px;font-weight:800;letter-spacing:-1px;
+  background:linear-gradient(135deg,#2563eb 30%,#06b6d4);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  cursor:pointer;user-select:none;
+}
+.brait-sub{font-size:10px;color:var(--mt);font-weight:400;margin-left:2px}
+.hright{margin-left:auto;display:flex;align-items:center;gap:10px}
+.conn-chip{
+  display:flex;align-items:center;gap:5px;
+  font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600;
+  padding:3px 10px;border-radius:20px;
+  background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:var(--err);
+  transition:all .3s;
+}
+.conn-chip.ok{background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.3);color:var(--ok)}
+.risk-chip{
+  font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;
+  padding:3px 10px;border-radius:20px;
+  background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--warn);
+}
+
+/* BODY: sidebar + chat + panel */
+.body{flex:1;display:flex;overflow:hidden}
+
+/* ── LEFT SIDEBAR ─────────────────────────────────────── */
+aside.left{
+  width:220px;flex-shrink:0;
+  background:var(--s1);border-right:1px solid var(--bd);
+  display:flex;flex-direction:column;overflow:hidden;
+  transition:transform .3s;
+}
+.sb-section{padding:10px 12px;border-bottom:1px solid var(--bd)}
+.sb-label{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600;
+           color:var(--mt);letter-spacing:1px;text-transform:uppercase;
+           display:flex;align-items:center;gap:6px;margin-bottom:8px}
+
+/* Engine status rows */
+.eng-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:5px 8px;margin-bottom:3px;border-radius:6px;
+  background:var(--s2);border:1px solid var(--bd);font-size:11px;
+}
+.eng-name{color:var(--mt)}
+.eng-val{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ac2);
+          display:flex;align-items:center;gap:4px}
+
+/* Signal cards */
+.sig-card{
+  margin-bottom:4px;padding:6px 8px;border-radius:6px;
+  background:var(--s2);border:1px solid var(--bd);
+  border-left-width:2px;
+}
+.sig-card.BUY  {border-left-color:var(--ok)}
+.sig-card.SELL {border-left-color:var(--err)}
+.sig-card.HOLD {border-left-color:var(--warn)}
+.sig-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+.sig-ticker{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;color:var(--tx)}
+.sig-type{font-size:9px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.sig-type.BUY{color:var(--ok)}.sig-type.SELL{color:var(--err)}.sig-type.HOLD{color:var(--warn)}
+.conf-track{height:2px;background:var(--bd);border-radius:1px;margin-top:3px;overflow:hidden}
+.conf-fill{height:100%;border-radius:1px;background:linear-gradient(90deg,#2563eb,#06b6d4)}
+
+/* Sector rows */
+.sec-row{display:flex;justify-content:space-between;align-items:center;
+          font-size:11px;padding:3px 0}
+.sec-etf{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--mt);min-width:36px}
+.sec-chg{font-family:'JetBrains Mono',monospace;font-size:10px}
+.up{color:var(--ok)}.dn{color:var(--err)}.nt{color:var(--dim)}
+
+/* Metrics */
+.metric-row{display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px}
+.metric-k{color:var(--mt)}
+.metric-v{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--ac2)}
+
+/* ── MAIN CHAT ─────────────────────────────────────────── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+
+/* Messages */
+#msgs{
+  flex:1;overflow-y:auto;padding:16px 20px;
+  display:flex;flex-direction:column;gap:10px;
+  scroll-behavior:smooth;
+}
+
+/* Bubbles */
+.msg-wrap{display:flex}
+.msg-wrap.user{justify-content:flex-end}
+.msg-wrap.miia,.msg-wrap.sys{justify-content:flex-start}
+
+.bubble{
+  max-width:82%;padding:10px 14px;border-radius:12px;
+  font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-word;
+}
+.bubble.user{
+  background:linear-gradient(135deg,#1d4ed8,#0e7490);
+  color:#fff;border-bottom-right-radius:3px;
+}
+.bubble.miia{
+  background:var(--s2);border:1px solid var(--bd);border-bottom-left-radius:3px;
+}
+.bubble.sys{
+  background:transparent;border:1px dashed var(--bd2);color:var(--mt);
+  font-size:11px;text-align:center;border-radius:8px;align-self:center;
+}
+.bub-ts{font-size:9px;color:var(--dim);margin-top:3px}
+.msg-wrap.user .bub-ts{text-align:right}
+
+/* Typing */
+.typing-wrap{display:flex;gap:4px;padding:10px 14px;
+             background:var(--s2);border:1px solid var(--bd);
+             border-radius:12px;border-bottom-left-radius:3px;width:fit-content}
+.typing-wrap span{width:5px;height:5px;background:var(--mt);border-radius:50%;animation:blink .9s infinite}
+.typing-wrap span:nth-child(2){animation-delay:.15s}
+.typing-wrap span:nth-child(3){animation-delay:.3s}
+@keyframes blink{0%,80%,100%{transform:scale(1)}40%{transform:scale(1.4)}}
+
+/* Decision chain card */
+.chain-card{
+  max-width:88%;background:var(--s2);
+  border:1px solid var(--bd);border-radius:12px;border-bottom-left-radius:3px;
+  padding:12px 14px;
+}
+.chain-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.chain-signal{
+  font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;
+  padding:2px 10px;border-radius:6px;
+}
+.chain-signal.BUY {background:rgba(16,185,129,.15);color:var(--ok);border:1px solid rgba(16,185,129,.3)}
+.chain-signal.SELL{background:rgba(239,68,68,.15);color:var(--err);border:1px solid rgba(239,68,68,.3)}
+.chain-signal.HOLD{background:rgba(245,158,11,.15);color:var(--warn);border:1px solid rgba(245,158,11,.3)}
+.chain-ticker{font-size:14px;font-weight:700;color:var(--tx)}
+.chain-body{font-size:12px;color:var(--mt);margin-bottom:9px;line-height:1.5}
+.chain-items{display:flex;flex-direction:column;gap:4px;border-top:1px solid var(--bd);padding-top:8px}
+.chain-item{display:flex;align-items:center;gap:8px}
+.ci-icon{font-size:13px;flex-shrink:0}
+.ci-label{font-size:10px;color:var(--mt);min-width:110px;flex-shrink:0}
+.ci-val{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600}
+.chain-footer{display:flex;gap:12px;margin-top:8px;padding-top:7px;border-top:1px solid var(--bd);font-size:10px;color:var(--dim)}
+.chain-footer span{font-family:'JetBrains Mono',monospace}
+
+/* News justification */
+.news-justif{
+  max-width:88%;background:rgba(13,20,34,.7);
+  border:1px solid var(--bd);border-left:2px solid var(--ac2);
+  border-radius:8px;padding:9px 11px;
+}
+.news-justif-head{font-size:9px;color:var(--mt);text-transform:uppercase;
+                   letter-spacing:.05em;margin-bottom:6px;
+                   font-family:'JetBrains Mono',monospace}
+.news-item{margin-bottom:5px;padding-bottom:5px;border-bottom:1px solid var(--bd)}
+.news-item:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none}
+.news-title{font-size:11px;color:var(--tx);line-height:1.4}
+.news-meta{display:flex;gap:6px;margin-top:3px;font-size:10px;color:var(--dim)}
+
+/* Suggestion chips */
+.suggestions{display:flex;flex-wrap:wrap;gap:5px;padding:0 20px 10px}
+.sug-chip{
+  font-size:11px;color:var(--ac2);border:1px solid rgba(6,182,212,.3);
+  background:rgba(6,182,212,.05);padding:4px 12px;border-radius:20px;
+  cursor:pointer;transition:all .2s;white-space:nowrap;
+}
+.sug-chip:hover{background:rgba(6,182,212,.12);border-color:var(--ac2)}
+
+/* Input area */
+.input-area{
+  flex-shrink:0;padding:12px 18px;
+  background:rgba(8,12,20,.95);border-top:1px solid var(--bd);
+}
+.input-row{display:flex;gap:8px;align-items:flex-end}
+#txt{
+  flex:1;background:var(--s2);border:1px solid var(--bd);
+  border-radius:10px;padding:10px 14px;font-size:14px;
+  color:var(--tx);font-family:'Inter',sans-serif;resize:none;
+  outline:none;min-height:42px;max-height:110px;
+  transition:border-color .2s;
+  -webkit-appearance:none;
+}
+#txt:focus{border-color:var(--ac)}
+#txt::placeholder{color:var(--mt)}
+#send{
+  background:linear-gradient(135deg,#2563eb,#0e7490);
+  color:#fff;border:none;border-radius:10px;padding:10px 16px;
+  cursor:pointer;font-size:13px;font-weight:600;height:42px;
+  flex-shrink:0;transition:opacity .2s;white-space:nowrap;
+  display:flex;align-items:center;gap:5px;
+}
+#send:active{opacity:.75}
+#send:disabled{opacity:.35;cursor:not-allowed}
+.input-hint{font-size:10px;color:var(--dim);margin-top:5px;text-align:center}
+
+/* ── RIGHT PANEL ──────────────────────────────────────── */
+aside.right{
+  width:220px;flex-shrink:0;
+  background:var(--s1);border-left:1px solid var(--bd);
+  display:flex;flex-direction:column;overflow-y:auto;
+}
+
+/* Backtesting mini */
+.bt-metric{display:flex;justify-content:space-between;font-size:11px;padding:2px 0}
+.bt-k{color:var(--mt)}
+.bt-v{font-family:'JetBrains Mono',monospace;font-weight:600}
+
+/* News card */
+.nc{background:var(--s2);border:1px solid var(--bd);border-radius:8px;
+     padding:8px 9px;margin-bottom:5px;cursor:pointer;transition:border-color .2s}
+.nc:hover{border-color:var(--bd2)}
+.nc.bullish{border-top:2px solid var(--ok)}
+.nc.bearish{border-top:2px solid var(--err)}
+.nc.neutral {border-top:2px solid var(--dim)}
+.nc-title{font-size:11px;line-height:1.4;color:var(--tx)}
+.nc-meta{display:flex;gap:5px;margin-top:4px;font-size:9px;font-family:'JetBrains Mono',monospace}
+.nc-ticker{color:var(--ac2)}
+.nc-sent.bull{color:var(--ok)}.nc-sent.bear{color:var(--err)}.nc-sent.neut{color:var(--warn)}
+
+/* ── MOBILE ───────────────────────────────────────────── */
+@media (max-width:900px){
+  aside.left{position:fixed;left:0;top:52px;bottom:0;z-index:80;
+             transform:translateX(-100%)}
+  aside.left.open{transform:translateX(0)}
+  aside.right{display:none}
+  .brait-sub{display:none}
+}
+@media (max-width:600px){
+  #msgs{padding:10px 12px}
+  .bubble{font-size:13px}
+  #txt{font-size:16px}
+}
+
+/* ── ANIM ─────────────────────────────────────────────── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.msg-wrap,.chain-card,.news-justif{animation:fadeUp .2s ease}
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ────────────────────────────────────────── -->
+<header>
+  <div onclick="toggleSidebar()" style="cursor:pointer;display:flex;align-items:center;gap:2px">
+    <div class="brait-logo">BRAIT</div>
+    <div class="brait-sub">by MIIA</div>
+  </div>
+  <div style="flex:1"></div>
+  <div class="hright">
+    <div id="conn-chip" class="conn-chip">
+      <div id="conn-dot" class="dot-off"></div>
+      <span id="conn-txt">DESCONECTADO</span>
+    </div>
+    <div id="risk-chip" class="risk-chip">RIESGO –</div>
+    <a href="/" style="font-size:11px;color:var(--mt);text-decoration:none;
+       border:1px solid var(--bd);padding:4px 9px;border-radius:6px;transition:color .2s"
+       onmouseover="this.style.color='var(--ac2)'" onmouseout="this.style.color='var(--mt)'">
+      Dashboard
+    </a>
+  </div>
+</header>
+
+<!-- ── BODY ──────────────────────────────────────────── -->
+<div class="body">
+
+<!-- LEFT SIDEBAR -->
+<aside class="left" id="sb-left">
+  <!-- Engine health -->
+  <div class="sb-section">
+    <div class="sb-label">
+      <span class="material-symbols-outlined" style="font-size:12px">memory</span>
+      Motores IA
+    </div>
+    <div class="eng-row">
+      <span class="eng-name">LSTM</span>
+      <span class="eng-val"><div class="dot-ok" id="eng-44-dot"></div><span id="eng-44-v">–</span></span>
+    </div>
+    <div class="eng-row">
+      <span class="eng-name">Sentimiento</span>
+      <span class="eng-val"><div class="dot-off" id="eng-45-dot"></div><span id="eng-45-v">–</span></span>
+    </div>
+    <div class="eng-row">
+      <span class="eng-name">Cuantitativo</span>
+      <span class="eng-val"><div class="dot-off" id="eng-25a-dot"></div><span id="eng-25a-v">–</span></span>
+    </div>
+    <div class="eng-row">
+      <span class="eng-name">Lingüístico</span>
+      <span class="eng-val"><div class="dot-ok" id="eng-25b-dot"></div><span id="eng-25b-v">–</span></span>
+    </div>
+  </div>
+
+  <!-- LSTM signals -->
+  <div class="sb-section" style="flex:1;overflow-y:auto">
+    <div class="sb-label">
+      <span class="material-symbols-outlined" style="font-size:12px">show_chart</span>
+      Señales LSTM
+    </div>
+    <div id="sig-list"><div style="font-size:11px;color:var(--mt)">Esperando...</div></div>
+  </div>
+
+  <!-- Sectors -->
+  <div class="sb-section">
+    <div class="sb-label">
+      <span class="material-symbols-outlined" style="font-size:12px">stacked_line_chart</span>
+      Sectores
+    </div>
+    <div id="sec-list"><div style="font-size:11px;color:var(--mt)">Cargando...</div></div>
+  </div>
+
+  <!-- Footer metrics -->
+  <div class="sb-section">
+    <div class="sb-label">Métricas</div>
+    <div class="metric-row"><span class="metric-k">Precisión</span><span class="metric-v" id="sb-acc">–</span></div>
+    <div class="metric-row"><span class="metric-k">Sharpe</span><span class="metric-v" id="sb-sharpe">–</span></div>
+    <div class="metric-row"><span class="metric-k">Señales</span><span class="metric-v" id="sb-total">0</span></div>
+    <div class="metric-row"><span class="metric-k">Tracking</span><span class="metric-v" id="sb-pend" style="color:var(--warn)">0</span></div>
+  </div>
+</aside>
+
+<!-- MAIN CHAT -->
+<div class="main">
+  <div id="msgs">
+    <!-- Welcome -->
+    <div class="msg-wrap sys">
+      <div class="bubble sys">
+        BRAIT — Motor de Análisis Inteligente · conectado a MIIA v4.0
+      </div>
+    </div>
+    <div class="msg-wrap miia">
+      <div>
+        <div class="bubble miia">
+          Hola. Soy <strong>BRAIT</strong>, el motor de análisis conversacional de MIIA.<br><br>
+          Puedo explicarte cualquier señal, analizar tickers específicos y responderte en base a datos reales de mercado, predicciones LSTM y memoria causal acumulada.<br>
+          <em style="color:var(--mt);font-size:12px">Ej: "¿Por qué recomendás XLV?" · "¿Cómo está el mercado?" · "Analizá ARGT"</em>
+        </div>
+        <div class="bub-ts">BRAIT v1.0</div>
+      </div>
+    </div>
+    <!-- Typing -->
+    <div id="typing" class="msg-wrap miia" style="display:none">
+      <div class="typing-wrap"><span></span><span></span><span></span></div>
+    </div>
+  </div>
+
+  <!-- Suggestions -->
+  <div class="suggestions" id="sug-row">
+    <div class="sug-chip" onclick="fillAndSend('¿Cómo está el mercado ahora?')">¿Cómo está el mercado?</div>
+    <div class="sug-chip" onclick="fillAndSend('¿Cuál es la señal actual de XLV?')">Señal XLV</div>
+    <div class="sug-chip" onclick="fillAndSend('¿Por qué recomendás esa señal?')">¿Por qué esa señal?</div>
+    <div class="sug-chip" onclick="fillAndSend('Analizá el riesgo del mercado')">Riesgo mercado</div>
+    <div class="sug-chip" onclick="fillAndSend('¿Qué dice el LSTM sobre ARGT?')">LSTM ARGT</div>
+    <div class="sug-chip" onclick="fillAndSend('¿Cómo quedó el portfolio recomendado?')">Portfolio actual</div>
+  </div>
+
+  <!-- Input -->
+  <div class="input-area">
+    <div class="input-row">
+      <textarea id="txt" rows="1" placeholder="Preguntale a BRAIT sobre el mercado..."
+        onkeydown="onKey(event)" oninput="autoResize(this)"></textarea>
+      <button id="send" onclick="enviar()">
+        <span class="material-symbols-outlined" style="font-size:16px">send</span>
+        Enviar
+      </button>
+    </div>
+    <div class="input-hint">No es asesoramiento financiero · MIIA v4.0</div>
+  </div>
+</div>
+
+<!-- RIGHT PANEL -->
+<aside class="right">
+  <!-- Backtesting -->
+  <div class="sb-section">
+    <div class="sb-label">
+      <span class="material-symbols-outlined" style="font-size:12px">analytics</span>
+      Backtesting
+      <a href="/brait#backtesting" onclick="event.preventDefault();switchToFullBt()"
+         style="margin-left:auto;font-size:9px;color:var(--ac2);text-decoration:none;
+                font-family:'JetBrains Mono',monospace">ver más →</a>
+    </div>
+    <div class="bt-metric"><span class="bt-k">Precisión</span><span class="bt-v" id="bt-acc" style="color:var(--ac2)">–</span></div>
+    <div class="bt-metric"><span class="bt-k">Sharpe</span><span class="bt-v" id="bt-sharpe">–</span></div>
+    <div class="bt-metric"><span class="bt-k">CAGR</span><span class="bt-v" id="bt-cagr" style="color:var(--ok)">–</span></div>
+    <div class="bt-metric"><span class="bt-k">Max DD</span><span class="bt-v" id="bt-dd" style="color:var(--err)">–</span></div>
+    <div class="bt-metric"><span class="bt-k">BUY prec</span><span class="bt-v" id="bt-buy">–</span></div>
+    <div class="bt-metric"><span class="bt-k">SELL prec</span><span class="bt-v" id="bt-sell">–</span></div>
+    <div class="bt-metric"><span class="bt-k">Señales</span><span class="bt-v" id="bt-total">0</span></div>
+    <div class="bt-metric"><span class="bt-k">Pendientes</span><span class="bt-v" id="bt-pend" style="color:var(--warn)">0</span></div>
+  </div>
+
+  <!-- Portfolio mini -->
+  <div class="sb-section">
+    <div class="sb-label">
+      <span class="material-symbols-outlined" style="font-size:12px">account_balance_wallet</span>
+      Portfolio
+    </div>
+    <div id="port-mini"><div style="font-size:11px;color:var(--mt)">Cargando...</div></div>
+  </div>
+
+  <!-- News -->
+  <div class="sb-section" style="flex:1;overflow-y:auto">
+    <div class="sb-label">
+      <span class="material-symbols-outlined" style="font-size:12px">newspaper</span>
+      Noticias
+    </div>
+    <div id="news-right"><div style="font-size:11px;color:var(--mt)">Cargando...</div></div>
+  </div>
+</aside>
+
+</div><!-- /body -->
+
+<script>
+// ════════════════════════════════════════════════════════════
+// CONFIG
+// ════════════════════════════════════════════════════════════
+const SESION   = "br_" + Date.now().toString(36);
+const USER_ID  = "u_" + Math.random().toString(36).slice(2,9);
+const _p       = location.port;
+const _direct  = _p === "5005" || location.protocol === "file:";
+const _base    = _direct ? "http://localhost:5005" : "";
+const _wsUrl   = _direct ? "ws://localhost:5005/ws"
+               : (location.protocol === "https:" ? "wss" : "ws") + "://" + location.host + "/ws";
+const api = p  => _base + p;
+
+// State
+const lstmState = {}, sentState = {};
+let ws = null, _wsOk = false, _pending = false, _respShown = false;
+const _hist = [];  // {rol, txt}
+
+const $ = id => document.getElementById(id);
+
+// ════════════════════════════════════════════════════════════
+// UTILS
+// ════════════════════════════════════════════════════════════
+function esc(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function now(){ return new Date().toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"}); }
+function pct(v){ const n=parseFloat(v); return isNaN(n)?"–":`${(n*100).toFixed(0)}%`; }
+function scrollBottom(){ const m=$("msgs"); requestAnimationFrame(()=>{ m.scrollTop=m.scrollHeight; }); }
+
+// ════════════════════════════════════════════════════════════
+// SIDEBAR TOGGLE (mobile)
+// ════════════════════════════════════════════════════════════
+function toggleSidebar(){
+  $("sb-left").classList.toggle("open");
+}
+
+// ════════════════════════════════════════════════════════════
+// WEBSOCKET
+// ════════════════════════════════════════════════════════════
+function connectWS() {
+  try { ws = new WebSocket(_wsUrl); } catch(_){ setTimeout(connectWS,3000); return; }
+  ws.onopen = () => {
+    _wsOk = true;
+    setConn(true);
+    loadAll();
+    setInterval(() => ws.readyState===1 && ws.send(JSON.stringify({tipo:"ping"})), 20000);
+  };
+  ws.onclose = () => {
+    _wsOk = false; setConn(false);
+    setTimeout(connectWS, Math.min(30000, 3000));
+  };
+  ws.onerror = () => { try{ws.close()}catch(_){} };
+  ws.onmessage = ({data}) => {
+    try { handle(JSON.parse(data)); } catch(_){}
+  };
+}
+
+function setConn(ok) {
+  const ch = $("conn-chip"), dot = $("conn-dot"), txt = $("conn-txt");
+  if(ok){ ch.className="conn-chip ok"; dot.className="dot-ok"; txt.textContent="CONECTADO"; }
+  else  { ch.className="conn-chip";    dot.className="dot-off"; txt.textContent="DESCONECTADO"; }
+}
+
+function handle(d) {
+  const tipo = d.tipo||d.type, p = d.payload||d;
+  if(tipo==="init")      { if(p.sectores) applySectors(p.sectores, p.riesgo_pct); updateBT(p); return; }
+  if(tipo==="mercado")   { applySectors(p.sectores, p.riesgo_pct||p.riesgo_num); return; }
+  if(tipo==="accuracy"||tipo==="backtesting") { updateBT(p); return; }
+  if(tipo==="lstm_señal"||tipo==="lstm_signal") { updateLSTM(p); return; }
+  if(tipo==="sentimiento"||tipo==="sentiment")  { updateSent(p); return; }
+  if(tipo==="decision"||tipo==="respuesta")     {
+    const txt  = p.texto||p.respuesta||"";
+    const sn   = (p.senal||"").toUpperCase();
+    if(txt && (sn==="INFO"||sn===""||p.type==="respuesta") && !_respShown) {
+      hideTyping(); _respShown=true;
+      addMsg("miia",txt);
+      _hist.push({rol:"miia",txt});
+      showNewsJustif(p.ticker, sn);
+    } else if(txt && sn && sn!=="INFO" && sn!=="" && !_respShown) {
+      showChain(p);
+      showNewsJustif(p.ticker, sn);
+    }
+    return;
+  }
+  if(tipo==="stream"){ const sub=p.type||p.tipo||"";
+    if(sub==="class25B_heartbeat") updateEng25B(p);
+    if(sub==="backtesting") updateBT(p);
+    return;
+  }
+  if(tipo==="alerta") {
+    const alertaTxt = (p.titulo||p.mensaje||"Alerta").slice(0,100);
+    addMsg("sys","⚠️ "+alertaTxt);
+    return;
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// CHAT
+// ════════════════════════════════════════════════════════════
+async function enviar() {
+  const el = $("txt"), raw = (el.value||"").trim();
+  if(!raw || _pending) return;
+  el.value=""; autoResize(el);
+  addMsg("user", raw);
+  _hist.push({rol:"user",txt:raw});
+  hideSuggestions();
+  showTyping(); $("send").disabled=true;
+  _pending=true; _respShown=false;
+
+  try {
+    const r = await fetch(api("/api/ask"),{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        mensaje:raw, user_id:USER_ID, sesion:SESION, nombre:"usuario",
+        historial:_hist.slice(-6),
+      }),
+      signal:AbortSignal.timeout(26000),
+    });
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const d = await r.json();
+    if(!_respShown) {
+      hideTyping(); _respShown=true;
+      if(d.texto) {
+        addMsg("miia",d.texto);
+        _hist.push({rol:"miia",txt:d.texto});
+      } else {
+        addMsg("sys","⏳ MIIA procesa la solicitud. Si demora, verificá que el sistema esté iniciado.");
+      }
+    }
+  } catch(e) {
+    hideTyping();
+    if(!_respShown) {
+      _respShown=true;
+      addMsg("sys", e.name==="TimeoutError"||e.name==="AbortError"
+        ? "⌛ Tiempo de espera agotado. Verificá que MIIA esté corriendo."
+        : _wsOk ? "⏳ Procesando via WebSocket..."
+                : "🔴 Sistema offline. Iniciá MIIA para usar BRAIT.");
+    }
+  } finally {
+    $("send").disabled=false; _pending=false; el.focus();
+  }
+}
+
+function fillAndSend(txt) {
+  const el=$("txt"); el.value=txt; autoResize(el); enviar();
+}
+function hideSuggestions(){ const s=$("sug-row"); if(s)s.style.display="none"; }
+function onKey(e){ if(e.key==="Enter"&&!e.shiftKey&&window.innerWidth>600){ e.preventDefault(); enviar(); } }
+function autoResize(el){ el.style.height="auto"; el.style.height=Math.min(el.scrollHeight,110)+"px"; }
+
+function addMsg(rol, txt) {
+  const msgs = $("msgs");
+  const typing = $("typing");
+  const wrap = document.createElement("div");
+  wrap.className = "msg-wrap " + rol;
+  const inner = rol==="sys"
+    ? `<div class="bubble sys">${esc(txt)}</div>`
+    : `<div><div class="bubble ${rol}">${esc(txt)}</div><div class="bub-ts">${now()}</div></div>`;
+  wrap.innerHTML = inner;
+  if(typing && typing.parentNode===msgs) msgs.insertBefore(wrap,typing);
+  else msgs.appendChild(wrap);
+  scrollBottom();
+}
+
+function showTyping() { $("typing").style.display="flex"; scrollBottom(); }
+function hideTyping()  { $("typing").style.display="none"; }
+
+// Decision chain card
+function showChain(d) {
+  const msgs = $("msgs"), typing = $("typing");
+  const sn  = (d.senal||"HOLD").toUpperCase();
+  const clr = sn==="BUY"?"var(--ok)":sn==="SELL"?"var(--err)":"var(--warn)";
+  const conf = parseFloat(d.confianza||0);
+  const rsk  = parseFloat(d.riesgo||0.5);
+  const cPct = Math.round(conf*100), rPct = Math.round(rsk*100);
+
+  const lstm = lstmState[d.ticker];
+  const sent = sentState[d.ticker] || sentState["GENERAL"];
+
+  const items = [];
+  if(lstm){ const lc=Math.round(parseFloat(lstm.confianza||0)*100);
+    const lclr=lstm.señal==="BUY"?"var(--ok)":lstm.señal==="SELL"?"var(--err)":"var(--warn)";
+    items.push(`<div class="chain-item"><span class="ci-icon material-symbols-outlined" style="color:${lclr}">show_chart</span><span class="ci-label">LSTM Predictivo</span><span class="ci-val" style="color:${lclr}">${lstm.señal} · ${lc}%</span></div>`);
+  }
+  if(sent){ const sl=(sent.sentiment_label||"NEUTRAL").toUpperCase();
+    const sclr=sl==="BULLISH"?"var(--ok)":sl==="BEARISH"?"var(--err)":"var(--warn)";
+    const stxt=sl==="BULLISH"?"Positivo ▲":sl==="BEARISH"?"Negativo ▼":"Neutro ➡";
+    items.push(`<div class="chain-item"><span class="ci-icon material-symbols-outlined" style="color:${sclr}">newspaper</span><span class="ci-label">Sentimiento NLP</span><span class="ci-val" style="color:${sclr}">${stxt}</span></div>`);
+  }
+  items.push(`<div class="chain-item"><span class="ci-icon material-symbols-outlined" style="color:var(--ac)">psychology</span><span class="ci-label">Motor Cuantitativo</span><span class="ci-val" style="color:var(--ac)">25A+25B</span></div>`);
+  items.push(`<div class="chain-item"><span class="ci-icon material-symbols-outlined" style="color:${cPct>=70?"var(--ok)":cPct>=55?"var(--warn)":"var(--mt)"}">verified</span><span class="ci-label">Confianza MIIA</span><span class="ci-val" style="color:${cPct>=70?"var(--ok)":cPct>=55?"var(--warn)":"var(--mt)"}">${cPct}%</span></div>`);
+  items.push(`<div class="chain-item"><span class="ci-icon material-symbols-outlined" style="color:${rPct>65?"var(--err)":rPct>40?"var(--warn)":"var(--ok)"}">shield</span><span class="ci-label">Riesgo</span><span class="ci-val" style="color:${rPct>65?"var(--err)":rPct>40?"var(--warn)":"var(--ok)"}">${rPct}%</span></div>`);
+
+  const wrap = document.createElement("div");
+  wrap.className = "msg-wrap miia";
+  wrap.innerHTML = `<div class="chain-card">
+    <div class="chain-head">
+      <span class="chain-signal ${sn}">${sn}</span>
+      <span class="chain-ticker">${esc(d.ticker||"")}</span>
+      <span style="font-size:10px;color:var(--dim);margin-left:auto;font-family:'JetBrains Mono',monospace">${now()}</span>
+    </div>
+    ${d.texto?`<div class="chain-body">${esc((d.texto||"").slice(0,200))}</div>`:""}
+    <div class="chain-items">${items.join("")}</div>
+    <div class="chain-footer">
+      <span>Horizonte: <span>${d.horizonte||"–"}</span></span>
+      <span>Stop-loss: <span style="color:var(--err)">${d.stop_loss!=null?((d.stop_loss*100).toFixed(1)+"%"):"–"}</span></span>
+    </div>
+  </div>`;
+  if(typing&&typing.parentNode===msgs) msgs.insertBefore(wrap,typing);
+  else msgs.appendChild(wrap);
+  scrollBottom();
+}
+
+// News justification card
+const _newsBuffer = [];
+function showNewsJustif(ticker, senal) {
+  if(!ticker||!_newsBuffer.length) return;
+  const items = _newsBuffer
+    .filter(n => !ticker||n.ticker===ticker||n.titulo.toLowerCase().includes((ticker||"").toLowerCase()))
+    .slice(0,3);
+  if(!items.length) return;
+  const msgs=$("msgs"),typing=$("typing");
+  const sclr=senal==="BUY"?"var(--ok)":senal==="SELL"?"var(--err)":"var(--warn)";
+  const wrap=document.createElement("div"); wrap.className="msg-wrap miia";
+  wrap.innerHTML=`<div class="news-justif">
+    <div class="news-justif-head">📰 Noticias que fundamentan esta decisión</div>
+    ${items.map(n=>`<div class="news-item">
+      <div class="news-title">${esc(n.titulo.slice(0,90))}${n.titulo.length>90?"…":""}</div>
+      <div class="news-meta">
+        ${n.ticker?`<span style="color:var(--ac2)">${n.ticker}</span>`:""}
+        <span style="color:${n.sentimiento==="BULLISH"?"var(--ok)":n.sentimiento==="BEARISH"?"var(--err)":"var(--warn)"}">${n.sentimiento==="BULLISH"?"▲":n.sentimiento==="BEARISH"?"▼":"➡"} ${n.sentimiento}</span>
+        <span style="color:var(--dim);margin-left:auto">${n.fuente.slice(0,12)}</span>
+      </div>
+    </div>`).join("")}
+  </div>`;
+  if(typing&&typing.parentNode===msgs) msgs.insertBefore(wrap,typing);
+  else msgs.appendChild(wrap);
+  scrollBottom();
+}
+
+// ════════════════════════════════════════════════════════════
+// LSTM + SENTIMENT
+// ════════════════════════════════════════════════════════════
+function updateLSTM(p) {
+  if(!p?.ticker) return;
+  lstmState[p.ticker]=p;
+  renderLSTMSidebar();
+  const hd=$("eng-44-dot"); if(hd) hd.className="dot-ok";
+  const hv=$("eng-44-v"); if(hv) hv.textContent=Object.keys(lstmState).length+"/7 activos";
+}
+
+function renderLSTMSidebar() {
+  const el=$("sig-list"); if(!el) return;
+  const entries=Object.values(lstmState);
+  if(!entries.length) return;
+  el.innerHTML=entries.map(p=>`
+    <div class="sig-card ${p.señal}">
+      <div class="sig-top">
+        <span class="sig-ticker">${p.ticker}</span>
+        <span class="sig-type ${p.señal}">${p.señal}</span>
+      </div>
+      <div style="font-size:10px;color:var(--mt);font-family:'JetBrains Mono',monospace">
+        ${pct(p.confianza)} · $${p.precio_actual??"–"}
+      </div>
+      <div class="conf-track"><div class="conf-fill" style="width:${pct(p.confianza)}"></div></div>
+    </div>`).join("");
+}
+
+function updateSent(p) {
+  if(!p?.ticker||p._heartbeat) return;
+  sentState[p.ticker]=p;
+  const hd=$("eng-45-dot"); if(hd) hd.className="dot-ok";
+  const hv=$("eng-45-v"); if(hv) hv.textContent=Object.keys(sentState).length+" sectores";
+}
+
+// ════════════════════════════════════════════════════════════
+// SECTORS
+// ════════════════════════════════════════════════════════════
+function applySectors(sectores, riesgoRaw) {
+  if(!sectores) return;
+  const arr = Array.isArray(sectores) ? sectores
+    : Object.entries(sectores).map(([nombre,s])=>({sector:nombre,ticker:s.etf||nombre,change:s.change??0}));
+  const r = typeof riesgoRaw==="string" ? parseFloat(riesgoRaw)/100
+          : riesgoRaw>1 ? riesgoRaw/100 : riesgoRaw;
+  const chip=$("risk-chip");
+  if(chip && r!=null) {
+    const lbl=r>.7?"ALTO":r>.4?"MEDIO":"BAJO";
+    const clr=r>.7?"var(--err)":r>.4?"var(--warn)":"var(--ok)";
+    chip.textContent=`RIESGO ${lbl}`;
+    chip.style.color=clr; chip.style.borderColor=clr+"55"; chip.style.background=clr+"11";
+  }
+  const el=$("sec-list"); if(!el) return;
+  el.innerHTML=arr.slice(0,10).map(s=>{
+    const v=s.change??s.change_pct??0;
+    const t=s.ticker||s.etf||s.sector||"–";
+    const cls=v>0.1?"up":v<-0.1?"dn":"nt";
+    return `<div class="sec-row">
+      <span class="sec-etf">${t}</span>
+      <span class="sec-chg ${cls}">${v>0?"+":""}${parseFloat(v).toFixed(2)}%</span>
+    </div>`;
+  }).join("");
+}
+
+// ════════════════════════════════════════════════════════════
+// BACKTESTING
+// ════════════════════════════════════════════════════════════
+function updateBT(d) {
+  const setEl=(id,v,clr)=>{ const e=$(id); if(e&&v!=null){e.textContent=v;if(clr)e.style.color=clr;} };
+  const acc=d.accuracy_global??d.precision_global??d.accuracy;
+  if(acc!=null){ const v=`${(acc*100).toFixed(1)}%`; setEl("bt-acc",v); setEl("sb-acc",v); }
+  const sh=d.sharpe; if(sh!=null){ setEl("bt-sharpe",sh.toFixed?sh.toFixed(2):sh); setEl("sb-sharpe",sh.toFixed?sh.toFixed(2):sh); }
+  const tot=d.total||d.total_decisiones; if(tot!=null){ setEl("bt-total",tot); setEl("sb-total",tot); }
+  const pend=d.pendientes||d.señales_activas; if(pend!=null){ setEl("bt-pend",pend); setEl("sb-pend",pend); }
+  if(d.precision_buy!=null)  setEl("bt-buy",`${(d.precision_buy*100).toFixed(1)}%`);
+  if(d.precision_sell!=null) setEl("bt-sell",`${(d.precision_sell*100).toFixed(1)}%`);
+}
+
+function updateEng25B(d) {
+  const hd=$("eng-25b-dot"); if(hd) hd.className="dot-ok";
+  const hv=$("eng-25b-v"); if(hv) hv.textContent=`act. (${d.patrones_totales??0} pat.)`;
+}
+
+function switchToFullBt() { window.location.href="/?panel=backtesting"; }
+
+// ════════════════════════════════════════════════════════════
+// DATA LOAD
+// ════════════════════════════════════════════════════════════
+async function loadAll() {
+  try {
+    const [acc,mkt,pred,port,news] = await Promise.allSettled([
+      fetch(api("/api/accuracy")).then(r=>r.json()),
+      fetch(api("/api/market")).then(r=>r.json()),
+      fetch(api("/api/predicciones")).then(r=>r.json()),
+      fetch(api("/api/portfolio")).then(r=>r.json()),
+      fetch(api("/api/noticias?n=15")).then(r=>r.json()),
+    ]);
+
+    if(acc.status==="fulfilled") {
+      const d=acc.value;
+      updateBT({
+        accuracy_global:(d.accuracy_global||0)/100,
+        sharpe:d.sharpe??null,
+        total_decisiones:d.total_decisiones||0,
+        pendientes:d.pendientes||0,
+        precision_buy:(d.precision_buy||0)/100,
+        precision_sell:(d.precision_sell||0)/100,
+      });
+    }
+    if(mkt.status==="fulfilled") {
+      const d=mkt.value;
+      if(d.sectores) applySectors(d.sectores, d.riesgo_num!=null?d.riesgo_num/100:0.5);
+    }
+    if(pred.status==="fulfilled") {
+      const d=pred.value;
+      Object.values(d.lstm||{}).forEach(updateLSTM);
+      Object.values(d.sentimiento||{}).forEach(updateSent);
+    }
+    if(port.status==="fulfilled") renderPortMini(port.value);
+    if(news.status==="fulfilled") renderNews(news.value.noticias||[]);
+  } catch(_) {}
+
+  // Backtesting professional
+  try {
+    const bp = await fetch(api("/api/backtesting/professional")).then(r=>r.json());
+    if(bp.sharpe!=null) { const e=$("bt-sharpe"); if(e)e.textContent=bp.sharpe.toFixed(2); }
+    if(bp.cagr!=null) { const e=$("bt-cagr"); if(e)e.textContent=(bp.cagr>0?"+":"")+bp.cagr.toFixed(1)+"%"; }
+    if(bp.max_drawdown!=null) { const e=$("bt-dd"); if(e)e.textContent="-"+bp.max_drawdown.toFixed(1)+"%"; }
+  } catch(_) {}
+}
+
+function renderPortMini(d) {
+  const el=$("port-mini"); if(!el) return;
+  if(!d?.activos?.length){ el.innerHTML=`<div style="font-size:11px;color:var(--mt)">Sin portfolio aún</div>`; return; }
+  const p=d.portfolio;
+  el.innerHTML=`<div style="font-size:10px;color:var(--mt);margin-bottom:5px">
+    ${(p.strategy||"–").replace(/_/g," ")} · Riesgo ${p.riesgo_pct}%</div>` +
+    d.activos.slice(0,5).map(a=>{
+      const chg=parseFloat(a.change_pct||0);
+      const clr=chg>=0?"var(--ok)":"var(--err)";
+      return `<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
+        <span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--tx)">${a.symbol}</span>
+        <span style="color:var(--ac2)">${a.peso_pct}%</span>
+        <span style="font-family:'JetBrains Mono',monospace;color:${clr};font-size:10px">${chg>=0?"+":""}${chg.toFixed(1)}%</span>
+      </div>`;
+    }).join("");
+}
+
+function renderNews(noticias) {
+  const el=$("news-right"); if(!el) return;
+  if(!noticias.length){ el.innerHTML=`<div style="font-size:11px;color:var(--mt)">Sin noticias aún</div>`; return; }
+
+  // Also fill buffer for chat justification
+  noticias.forEach(n=>{
+    if(!_newsBuffer.find(b=>b.titulo.slice(0,30)===n.titulo.slice(0,30)))
+      _newsBuffer.unshift({titulo:n.titulo,snippet:n.snippet||"",fuente:n.fuente||"",
+                           ticker:n.ticker||"",sentimiento:n.sentimiento||"NEUTRAL",ts:n.ts||""});
+  });
+  if(_newsBuffer.length>30) _newsBuffer.splice(30);
+
+  el.innerHTML=noticias.slice(0,8).map(n=>{
+    const cls=n.sentimiento==="BULLISH"?"bullish":n.sentimiento==="BEARISH"?"bearish":"neutral";
+    const sc=n.sentimiento==="BULLISH"?"bull":n.sentimiento==="BEARISH"?"bear":"neut";
+    const st=n.sentimiento==="BULLISH"?"▲ ALCISTA":n.sentimiento==="BEARISH"?"▼ BAJISTA":"➡ NEUTRO";
+    const hora=n.ts?new Date(n.ts).toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"}):"";
+    return `<div class="nc ${cls}" onclick="fillAndSend('Contame sobre esta noticia: ${esc(n.titulo.slice(0,60))}')">
+      <div class="nc-title">${esc(n.titulo.slice(0,80))}${n.titulo.length>80?"…":""}</div>
+      <div class="nc-meta">
+        ${n.ticker?`<span class="nc-ticker">${n.ticker}</span>`:""}
+        <span class="nc-sent ${sc}">${st}</span>
+        <span style="color:var(--dim);margin-left:auto">${hora}</span>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// ════════════════════════════════════════════════════════════
+// BOOT
+// ════════════════════════════════════════════════════════════
+connectWS();
+
+// Refresh data every 60s
+setInterval(loadAll, 60000);
+
+// Input focus
+window.addEventListener("load",()=>{ const t=$("txt"); if(t) t.focus(); });
+</script>
+</body>
+</html>

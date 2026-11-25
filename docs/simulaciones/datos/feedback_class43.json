@@ -1,0 +1,69 @@
+{
+ "_origen": "generado por docs/simulaciones/sim8_contrato_feedback.js",
+ "_que_es": "Lo que class43.js publica TEXTUALMENTE en class23_feedback / class24_feedback. Lo consume sim7_defecto10.cpp para verificar que el guard del C++ lo acepta. Si alguien renombra un campo en class43.js, este archivo cambia y sim7 falla.",
+ "_regenerar": "node docs/simulaciones/sim8_contrato_feedback.js",
+ "casos": [
+  {
+   "caso": "instrumento real (XLK, BUY)",
+   "canal": "class24_feedback",
+   "payload": {
+    "vector_id": "sim8-mem-XLK",
+    "decision_ts": 1791592402589,
+    "outcome": 1,
+    "outcome_magnitud": 0.6127,
+    "retorno_pct": 0.0146,
+    "retorno_relativo": 0.0115,
+    "label_modo": "relativo",
+    "ticker": "XLK",
+    "tipo": "BUY",
+    "origen": "verificacion_memoria",
+    "ts": "2026-10-11T06:33:22.591Z"
+   }
+  },
+  {
+   "caso": "agregado (GENERAL, BUY)",
+   "canal": "class24_feedback",
+   "payload": {
+    "vector_id": "sim8-mem-GENERAL",
+    "decision_ts": 1791592402593,
+    "outcome": 1,
+    "outcome_magnitud": 0.531,
+    "retorno_pct": 0.0031,
+    "retorno_relativo": null,
+    "label_modo": "absoluto",
+    "ticker": "GENERAL",
+    "tipo": "BUY",
+    "origen": "verificacion_memoria",
+    "ts": "2026-10-11T06:33:22.594Z"
+   }
+  },
+  {
+   "caso": "instrumento real (XLK, BUY)",
+   "canal": "class24_feedback",
+   "payload": {
+    "decision_ts": 1791592402595,
+    "outcome": 0,
+    "retorno_pct": 0,
+    "retorno_relativo": -0.0031,
+    "label_modo": "relativo",
+    "ticker": "XLK",
+    "origen": "reconciliacion",
+    "ts": "2026-10-11T06:33:22.596Z"
+   }
+  },
+  {
+   "caso": "agregado (GENERAL, BUY)",
+   "canal": "class24_feedback",
+   "payload": {
+    "decision_ts": 1791592402596,
+    "outcome": 1,
+    "retorno_pct": 0.0031,
+    "retorno_relativo": null,
+    "label_modo": "absoluto",
+    "ticker": "GENERAL",
+    "origen": "reconciliacion",
+    "ts": "2026-10-11T06:33:22.596Z"
+   }
+  }
+ ]
+}

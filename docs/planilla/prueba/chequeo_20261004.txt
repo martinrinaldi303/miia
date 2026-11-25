@@ -1,0 +1,86 @@
+$ ssh root@TU_SERVER 'bash /root/miia_check.sh --dur 300'
+════════════════════════════════════════════════════════════════
+  MIIA · diagnóstico 2026-10-04 21:37:19 CEST
+  muestreo del bus: 300s
+  mercado NYSE: CERRADO — 4.2/4.3/4.4 miden el camino por instrumento,
+                que se apaga sin datos nuevos. NO leer sus [BUG] como defecto.
+════════════════════════════════════════════════════════════════
+
+══════ 1 · INFRAESTRUCTURA ══════
+  [OK]     disco 28%
+           MySQL 13G · logs 52M
+  [OK]     RAM 56% — 6744 de 11960 MB
+  [OK]     disponible 5216 MB · caché 3512 MB
+           swap 4095 MB
+           tendencia -108 MB/día (sobre 25 h) — estable
+           procesos más pesados (RSS · días arriba):
+               2633 MB   32.6 d  mysqld
+               1198 MB   24.8 d  class30.js
+               1049 MB   24.8 d  class44.py
+                125 MB   24.8 d  class37.js
+                103 MB   39.6 d  systemd-journald
+           load 0.36 0.40 0.45 sobre 6 núcleos
+  [OK]     Redis OK · 1.73M
+  [OK]     MySQL OK
+
+══════ 2 · GENERACIÓN DE PROCESOS ══════
+           orquestador pid=2429964 edad=2142489s · procesos MIIA=38
+  [OK]     UNA SOLA GENERACIÓN
+  [OK]     los 8 módulos C++ vivos
+
+══════ 4 · FIRMAS DE BUG ESTRUCTURAL ══════
+
+  4.4 · decisiones de class25A
+           n=17 · señales={'HOLD': 14, 'BUY': 3}
+           instrumentos=1 · top: GENERAL=17
+  [BUG]    TODAS las decisiones son GENERAL — ORDEN 1 no está produciendo por instrumento
+  [OK]     distancia_neutro varía (σ=0.0445)
+
+══════ 7 · LA TESIS — leer EN ESTE ORDEN ══════
+           n_efectivo            : 340
+           n_redundancia         : 528.2
+           edge_min_detectable   : 5.3
+           base_rate             : 51.7
+           accuracy_directional  : 50.5
+           edge_vs_baseline      : -1.2
+           edge_significativo    : False
+           verificadas           : 179582
+           dias_medidos          : 65
+
+══════ 8 · APRENDIZAJE ══════
+  [OK]     class24 sub-redes (ema_inf = inferencia, ema_tr = entrenamiento)
+           [2026-10-04 21:40:23] [info] [class24]   red='portfolio|32' dim=32 seen=19100 sup=18058 inf=22653 ema_inf=0.9217 ema_tr=0.9937 norm_n=22653
+           [2026-10-04 21:40:23] [info] [class24]   red='impacto|12' dim=12 seen=12092 sup=11447 inf=14570 ema_inf=0.7717 ema_tr=0.8328 norm_n=14570
+           [2026-10-04 21:40:23] [info] [class24]   red='mercado|64' dim=64 seen=91342 sup=86092 inf=93502 ema_inf=0.8886 ema_tr=0.8091 norm_n=93502
+           [2026-10-04 21:40:23] [info] [class24]   red='cluster|12' dim=12 seen=32036 sup=30462 inf=38672 ema_inf=0.9157 ema_tr=0.9281 norm_n=38672
+  [OK]     class23 sub-redes
+           [2026-10-04 21:40:53] [info] [class23]   red='cluster|12' dims=12 seen=38672 sup=30455 ema=0.4287 norm_n=38672
+           [2026-10-04 21:41:23] [info] [class23]   red='mercado|64' dims=64 seen=93502 sup=86089 ema=0.6799 norm_n=93502
+  [OK]     heartbeat de class25A (umbral · emisión · z) de hace 43 s
+           [2026-10-04 21:41:42] [info] [class25A] ❤️  decisiones=285052 umbral=0.372 emisión=23.5% (obj 25%) z=283944/285052 voto por módulo=parejo pesos por fuente: mercado=0.19 cluster=0.29 impacto=0.21 portfolio=0.16
+  pesos del ensemble:
+           class21                  0.0408
+           class21/cluster          0.0939
+           class21/impacto          0.1040
+           class21/mercado          0.0189
+           class21/portfolio        0.1121
+           class22                  0.0382
+           class22/cluster          0.1248
+           class22/impacto          0.0703
+           class22/mercado          0.0170
+           class22/portfolio        0.0228
+           class23                  0.0382
+           class23/cluster          0.0247
+           class23/impacto          0.0204
+           class23/mercado          0.0831
+           class23/portfolio        0.0131
+           class24                  0.0390
+           class24/cluster          0.0434
+           class24/impacto          0.0173
+           class24/mercado          0.0673
+           class24/portfolio        0.0105
+           class44                  0.0000
+
+══════ 9 · VERIFICACIÓN ══════
+           pendientes BUY/SELL=2511  ← la cola que drena (la misma del panel)
+             de ésas, YA VENCIDAS=57 — lo que debería estar verificado; el resto está en vuelo, no atrasado

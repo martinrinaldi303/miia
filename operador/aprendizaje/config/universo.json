@@ -1,0 +1,101 @@
+{
+  "_que_es": "FUENTE ÚNICA del universo de instrumentos. Antes del 21-sep-2026 esta lista estaba copiada a mano en más de diez lugares (JS, Python, C#, HTML y hasta en el SQL del chequeo), y habían drifteado: class25B tenía SPY y QQQ pero NO tenía XLRE, que sí se cotiza y sí se mide. Ampliar el universo sin unificar esto hace que los números dejen de reconciliar y no se sepa por qué.",
+
+  "_como_se_usa": "Lo leen scripts/universo.js (todos los módulos JS) y MIIA/universo.py (chatbot y class44). Cada loader trae una copia de respaldo del mismo contenido: si este archivo falta o está roto, el sistema arranca igual con la lista de siempre y lo dice en el log. Nadie se queda sin universo por un JSON mal editado.",
+
+  "_ampliado_a_50": "26-sep-2026, decidido por Martín. Antes eran 13. El motivo NO es cosmético: con 13 instrumentos el IC mínimo detectable en 44 ruedas es 0,085 contra los ~0,040 en juego, así que la corrida del 12-oct al 12-dic no podía contestar su propia pregunta. Con 50, sigma del IC por ventana baja de 0,289 a 0,143, el MDE a 0,042 y la potencia sube de 15 % a 46 %. Es la palanca dominante: ningún cambio de modelo se le acerca.",
+
+  "_que_NO_esta_y_por_que": "Bonos (TLT, AGG, LQD) y materias primas (GLD, SLV, USO) quedan AFUERA a propósito, aunque estén entre los más operados del mundo. El retorno relativo se mide contra el promedio EQUIPONDERADO del universo: mezclando clases de activo, en un día de risk-off todos los bonos le ganan a todas las acciones y el rank IC pasa a medir '¿adivinaste el régimen?' en vez de '¿elegiste bien adentro de la clase?'. Además rompería la comparación con el brazo de control, que es todo renta variable. Los 50 son ETF de renta variable listados en EE. UU., que es lo que sirve el plan gratis de Finnhub.",
+
+  "_polling": "90 s con 50 tickers son 33 llamadas/min, contra las 60 del plan gratis de Finnhub. Con 60 s serían 50/min: entra, pero sin margen para reintentos ni para los tickers custom de class7_watch. No cuesta nada medible: el rank IC usa la sesión como ventana y class43 verifica con el último precio anterior.",
+
+  "_llamadas_por_minuto": "Presupuesto DURO de llamadas al proveedor de precios, por minuto. Lo aplica un limiter con reservoir en class7 sobre TODA llamada (el barrido de instrumentos y los tickers custom de class7_watch), así que el promedio de 33/min del polling deja de ser una esperanza y pasa a ser una garantía. Por qué hacía falta: con 13 el arranque gastaba 26 llamadas (prueba del proveedor + primer ciclo) y entraba; con 50 eran 100 en ~20 s, o sea que el corte se pasaba del límite en el minuto uno. Y en régimen, 50 instrumentos más 15 tickers del chat también se pasan. 54 son 60 menos un 10 % de margen para reintentos. Si se paga un plan, esto es lo único que hay que cambiar.",
+  "llamadas_por_minuto": 54,
+
+  "_version": "2026-09-26",
+
+  "polling_segundos": 90,
+
+  "instrumentos": [
+    { "ticker": "XLK",  "sector": "Technology",             "region": "US" },
+    { "ticker": "XLF",  "sector": "Financials",             "region": "US" },
+    { "ticker": "XLE",  "sector": "Energy",                 "region": "US" },
+    { "ticker": "XLV",  "sector": "Healthcare",             "region": "US" },
+    { "ticker": "XLY",  "sector": "Consumer Discretionary", "region": "US" },
+    { "ticker": "XLI",  "sector": "Industrials",            "region": "US" },
+    { "ticker": "XLB",  "sector": "Materials",              "region": "US" },
+    { "ticker": "XLRE", "sector": "Real Estate",            "region": "US" },
+    { "ticker": "XLU",  "sector": "Utilities",              "region": "US" },
+    { "ticker": "XLC",  "sector": "Communication Services", "region": "US" },
+    { "ticker": "XLP",  "sector": "Consumer Staples",       "region": "US" },
+
+    { "ticker": "SPY",  "sector": "US Large Cap",           "region": "US" },
+    { "ticker": "QQQ",  "sector": "US Nasdaq 100",          "region": "US" },
+    { "ticker": "IWM",  "sector": "US Small Cap",           "region": "US" },
+    { "ticker": "DIA",  "sector": "US Dow 30",              "region": "US" },
+
+    { "ticker": "EFA",  "sector": "Developed ex-US",        "region": "GLOBAL" },
+    { "ticker": "EEM",  "sector": "Emerging Markets",       "region": "GLOBAL" },
+
+    { "ticker": "EWJ",  "sector": "Japan",                  "region": "APAC" },
+    { "ticker": "EWG",  "sector": "Germany",                "region": "EUROPE" },
+    { "ticker": "EWU",  "sector": "United Kingdom",         "region": "EUROPE" },
+    { "ticker": "EWL",  "sector": "Switzerland",            "region": "EUROPE" },
+    { "ticker": "EWY",  "sector": "South Korea",            "region": "APAC" },
+    { "ticker": "EWT",  "sector": "Taiwan",                 "region": "APAC" },
+    { "ticker": "EWH",  "sector": "Hong Kong",              "region": "APAC" },
+    { "ticker": "EWA",  "sector": "Australia",              "region": "APAC" },
+    { "ticker": "INDA", "sector": "India",                  "region": "APAC" },
+    { "ticker": "FXI",  "sector": "China Large Cap",        "region": "APAC" },
+    { "ticker": "EWC",  "sector": "Canada",                 "region": "US" },
+    { "ticker": "EWW",  "sector": "Mexico",                 "region": "LATAM" },
+
+    { "ticker": "ARGT", "sector": "MERVAL",                 "region": "LATAM" },
+    { "ticker": "EWZ",  "sector": "Brazil",                 "region": "LATAM" },
+    { "ticker": "ILF",  "sector": "Latin America",          "region": "LATAM" },
+
+    { "ticker": "SMH",  "sector": "Semiconductors",         "region": "US" },
+    { "ticker": "XBI",  "sector": "Biotech",                "region": "US" },
+    { "ticker": "VNQ",  "sector": "REITs",                  "region": "US" },
+    { "ticker": "XOP",  "sector": "Oil and Gas E&P",        "region": "US" },
+    { "ticker": "KRE",  "sector": "Regional Banks",         "region": "US" },
+    { "ticker": "ITB",  "sector": "Homebuilders",           "region": "US" },
+    { "ticker": "JETS", "sector": "Airlines",               "region": "US" },
+    { "ticker": "IYT",  "sector": "Transportation",         "region": "US" },
+    { "ticker": "XME",  "sector": "Metals and Mining",      "region": "US" },
+    { "ticker": "GDX",  "sector": "Gold Miners",            "region": "US" },
+    { "ticker": "XRT",  "sector": "Retail",                 "region": "US" },
+    { "ticker": "ARKK", "sector": "Disruptive Innovation",  "region": "US" },
+
+    { "ticker": "MTUM", "sector": "Factor Momentum",        "region": "US" },
+    { "ticker": "QUAL", "sector": "Factor Quality",         "region": "US" },
+    { "ticker": "VTV",  "sector": "Factor Value",           "region": "US" },
+    { "ticker": "VUG",  "sector": "Factor Growth",          "region": "US" },
+    { "ticker": "USMV", "sector": "Factor Min Volatility",  "region": "US" },
+    { "ticker": "IWF",  "sector": "Factor Large Growth",    "region": "US" }
+  ],
+
+  "_reconocidos_en_texto": "Símbolos que el chat y class25B reconocen al PARSEAR texto, pero que NO se cotizan ni entran en la medición. Es una distinción legítima —el usuario puede escribir «oro» y hay que entenderlo— y por eso va en su propia lista en vez de mezclarse con `instrumentos`. Mezclarlas fue el origen del drift. SPY y QQQ SALIERON de acá el 26-sep: ahora son instrumentos de verdad, y tenerlos en las dos listas sería el mismo error de antes.",
+  "reconocidos_en_texto": ["BTC", "ETH", "VOO", "VTI", "IVV", "GLD", "SLV", "TLT", "AGG", "USO"],
+
+  "_noticias": "Subconjunto que class1 y class45 consultan a los proveedores de noticias. Hasta el 26-sep eran 11 fijos, y los otros instrumentos no tenían cobertura NUNCA. Ahora son los 50 y el reparto lo hace la ROTACIÓN de class1: el tope es de 25 términos por corrida y hay 3 corridas por día, así que cada instrumento se consulta cada 2 corridas, o sea cada ~16 h, una vez por rueda. El gasto de cuota NO cambia (75 llamadas/día contra las 100 del plan gratis): lo que cambia es el reparto, de 5,8 búsquedas diarias para 11 tickers a ~1,5 para los 50.",
+  "noticias": [
+    "XLK", "XLF", "XLE", "XLV", "XLY", "XLI", "XLB", "XLRE", "XLU", "XLC", "XLP",
+    "SPY", "QQQ", "IWM", "DIA", "EFA", "EEM",
+    "EWJ", "EWG", "EWU", "EWL", "EWY", "EWT", "EWH", "EWA", "INDA", "FXI", "EWC", "EWW",
+    "ARGT", "EWZ", "ILF",
+    "SMH", "XBI", "VNQ", "XOP", "KRE", "ITB", "JETS", "IYT", "XME", "GDX", "XRT", "ARKK",
+    "MTUM", "QUAL", "VTV", "VUG", "USMV", "IWF"
+  ],
+
+  "_lstm": "Subconjunto que modela class44. Desde el 10-oct-2026 son los 50, decidido por Martin: que el LSTM tenga la misma cobertura que el resto del sistema, y de aca a unos meses -- si en produccion se despega del azar -- conectarlo como votante de class25A. ATENCION: lo que esta entrada decia antes sobre el costo estaba MAL CALCULADO. Decia \u00ab~3,85x los modelos, entre 1,5 y 2 GB mas\u00bb, suponiendo que los 1.526 MB de RSS de class44 escalan con la cantidad de modelos. No escalan: son la linea de base de PyTorch, que es FIJA (medido el 21 y el 22-sep, crecio 6 MB un dia y bajo 3 MB el otro, sin reentrenar). Los pesos de un modelo son 498.947 parametros = 1,90 MB en float32, asi que pasar de 13 a 50 modelos cargados cuesta 70 MB. El costo real es otro y esta resuelto con rotacion: ver `_lstm_rotacion`.",
+  "_lstm_rotacion": "El costo de los 50 no es la RAM: es que class44 llama a yf.download en CADA prediccion y no solo al entrenar (_descargar, llamado desde predecir()). Con PRED_INTERVAL de 15 min, 50 tickers son 4.800 descargas de Yahoo por dia contra 1.248 con 13, y el ciclo de prediccion es SERIAL con timeout de 30 s por descarga: en el peor caso 25 min contra un intervalo de 15. No hay limiter, ni cache, ni manejo de 429 -- una descarga fallida devuelve None y el ticker se saltea en silencio. La asimetria que lo resuelve: la barra es HORARIA y el ciclo es de 15 min, asi que 3 de cada 4 descargas traen la misma barra y el modelo recibe la misma entrada. Con CLASS44_PRED_POR_CICLO=13 se predicen 13 por ciclo, por turno, y cada ticker una vez por hora: 1.248 descargas/dia, ~1.200 mensajes/dia a class44_output y 6,5 min de ciclo en el peor caso. Identico a lo que cuestan 13 tickers hoy, en descargas, en CPU y en caudal del bus -- que es lo que llena la grilla del panel desde el historial de class46. Es el mismo patron de rotacion que class1 usa para las noticias. CLASS44_PRED_POR_CICLO=0 lo apaga y vuelve a predecir todos por ciclo.",
+  "_lstm_ojo": "CORREGIDO el 26-sep-2026. Aca decia \u00abDesde el 26-sep ademas carga los modelos con una cache LRU, asi que la memoria dejo de crecer con el tamano de esta lista\u00bb. ERA FALSO: no hay cache LRU en class44.py, y peor, class44 importaba `TICKERS` (los 50) y no `TICKERS_LSTM`, asi que esta lista no tenia NINGUN efecto. Ya esta cableada. La cache LRU sigue sin existir, y con la cuenta corregida (1,90 MB por modelo, 95 MB los 50) no hace falta ni con los 50.",
+  "lstm": [
+    "XLK", "XLF", "XLE", "XLV", "XLY", "XLI", "XLB", "XLRE", "XLU", "XLC", "XLP", "SPY",
+    "QQQ", "IWM", "DIA", "EFA", "EEM", "EWJ", "EWG", "EWU", "EWL", "EWY", "EWT", "EWH",
+    "EWA", "INDA", "FXI", "EWC", "EWW", "ARGT", "EWZ", "ILF", "SMH", "XBI", "VNQ", "XOP",
+    "KRE", "ITB", "JETS", "IYT", "XME", "GDX", "XRT", "ARKK", "MTUM", "QUAL", "VTV", "VUG",
+    "USMV", "IWF"
+  ]
+}

@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ============================================================
+       sim21 — el vector de noticias de class3
+       ============================================================
+       Compila scripts/class3.cs DE PRODUCCIÓN dentro de la prueba, el
+       mismo criterio que sim17 con class10.cs y sim7 con los .cpp: la
+       prueba EJECUTA el código que corre, no una reimplementación que
+       puede diverger sin que nadie lo note.
+
+       class3.cs declara su propio Main (Class3Adaptado.ProgramAdaptado),
+       así que hace falta StartupObject para desambiguar. Nada de
+       ProgramAdaptado se instancia: sólo se llama a los estáticos
+       VectorHash3.* y ProgramAdaptado.SymbolDe, así que no se abre una
+       conexión a Redis.
+       ============================================================ -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <StartupObject>Sim21</StartupObject>
+    <AssemblyName>sim21</AssemblyName>
+    <RootNamespace>Sim21Ns</RootNamespace>
+    <!-- Hace falta para que la prueba de locale es-AR pueda cambiar la
+         cultura: con InvariantGlobalization=true no habría nada que probar. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <NoWarn>CS0618</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="StackExchange.Redis" Version="2.7.33" />
+    <PackageReference Include="System.Text.Json" Version="9.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\..\scripts\class3.cs" />
+    <Compile Include="Sim21.cs" />
+  </ItemGroup>
+
+</Project>

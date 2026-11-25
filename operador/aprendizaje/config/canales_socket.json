@@ -1,0 +1,37 @@
+{
+  "_que_es": "Quién puede ver cada canal del bus por Socket.IO. Hasta el 21-sep-2026 class46 no tenía autenticación de NINGÚN tipo: se capturaron 241 KB en un minuto con curl y sin token, con 16 canales adentro, incluida la decisión final y los vectores internos. Esto es lo que lo cierra.",
+
+  "_niveles": "publico = cualquiera, incluso sin cuenta. autenticado = hace falta un JWT válido. admin = además el email tiene que ser el de la cuenta maestra. Un canal que no figure acá cae en `admin`, que es el default seguro: si alguien agrega un canal a CANALES y se olvida de este archivo, no se filtra.",
+
+  "_por_que_este_reparto": "El showcase público (la decisión final, el LSTM, las noticias, los precios y la salud) sigue siendo público: es lo que la página le muestra a un visitante y lo que hace que el sitio tenga sentido. Lo que se cierra es lo INTERNO: class25a_output lleva los scores crudos de cada sub-red y class18_ingest lleva los vectores. Eso es el cómo funciona el sistema, no el qué decide.",
+
+  "_cuando_se_reactive_el_cobro": "Esto NO cierra el agujero del paywall, porque hoy no hay paywall: el cobro está pausado (COBRO_HABILITADO = false). El día que se reactive, mover class25_output y class44_output de `publico` a `pro` cierra la filtración de /api/predicciones. FALTA implementar el nivel `pro`: el JWT que firma class14 NO trae el plan (sólo user_id, email, name, provider), así que hace falta o agregarlo al token o que class46 consulte la tabla. Está anotado en las notas internas.",
+
+  "_version": "2026-09-21",
+
+  "canales": {
+    "class25_output":  "publico",
+    "class44_output":  "publico",
+    "class44_estado":  "publico",
+    "class45_estado":  "publico",
+    "system_health":   "publico",
+    "class1_output":   "publico",
+    "class9_output":   "publico",
+
+    "class45_output":  "autenticado",
+    "class43_output":  "autenticado",
+
+    "class25a_output": "admin",
+    "class18_ingest":  "admin"
+  },
+
+  "_por_que_el_filtro_por_source": "class18_ingest lleva CUATRO flujos: impacto (class11) y regimen (class13), que son dos tarjetas del panel PUBLICO, y portfolio (class15/17) y usuario (class14, con user_id, plan, tolerancia al riesgo y sectores seguidos). Cerrar el canal entero el 21-sep apago las dos tarjetas para TODOS los visitantes, y se vio recien el 10-oct. Abrirlo entero filtraria los perfiles de los usuarios. El filtro va adentro del canal, por el campo `source`: el que no tiene nivel para el canal entra a una sala parcial y recibe solo estos dos.",
+
+  "publico_por_source": {
+    "class18_ingest": ["class11", "class13"]
+  },
+
+  "_limites": "Tope de conexiones simultáneas por IP y de conexiones nuevas por minuto. El bus emite ~240 KB/min: sin esto, un scraper con veinte conexiones multiplica el tráfico de salida y el costo de la VPS.",
+  "max_conexiones_por_ip": 5,
+  "max_conexiones_nuevas_por_minuto": 30
+}

@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html class="dark" lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Qué es MIIA — Análisis de mercado asistido por IA</title>
+<meta name="description" content="MIIA combina un motor LSTM, análisis de sentimiento de noticias, redes cognitivas con aprendizaje online y un ensamble cuantitativo. Cada señal se verifica contra el precio real y el sistema publica la resolución de su propia medición."/>
+<link rel="canonical" href="https://miiaia.com/que-es-miia.html"/>
+<meta property="og:type" content="website"/>
+<meta property="og:title" content="Qué es MIIA — Análisis de mercado asistido por IA"/>
+<meta property="og:description" content="Cinco motores, un circuito de verificación contra precios reales, y una regla: si el sistema no puede medir algo, lo dice."/>
+<meta property="og:url" content="https://miiaia.com/que-es-miia.html"/>
+<meta name="twitter:card" content="summary"/>
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-0000000000000000"
+     crossorigin="anonymous"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+/* Mismos tokens que index.html — la landing tiene que parecer el mismo producto. */
+tailwind.config = {
+  darkMode:"class",
+  theme:{ extend:{
+    colors:{
+      "background":"#0A0A0A","surface":"#0F172A","surface-low":"#080D18",
+      "surface-high":"#1E293B","surface-mid":"#162032",
+      "on-surface":"#E2E8F0","on-surface-dim":"#94A3B8","on-surface-muted":"#475569",
+      "primary":"#3B82F6","primary-dim":"#1D4ED8","primary-glow":"rgba(59,130,246,0.15)",
+      "secondary":"#7DD3FC","tertiary":"#F59E0B",
+      "success":"#10B981","danger":"#EF4444","warn":"#F59E0B",
+    },
+    fontFamily:{ mono:["JetBrains Mono","monospace"], sans:["Inter","system-ui","sans-serif"] },
+  }}
+}
+</script>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:#0A0A0A;color:#E2E8F0;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  ::-webkit-scrollbar{width:6px}
+  ::-webkit-scrollbar-track{background:#0A0A0A}
+  ::-webkit-scrollbar-thumb{background:#1E293B;border-radius:3px}
+  .glass{background:rgba(15,23,42,0.85);border:1px solid #1E293B;backdrop-filter:blur(20px)}
+  .grid-bg{
+    background-image:linear-gradient(rgba(59,130,246,.05) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(59,130,246,.05) 1px,transparent 1px);
+    background-size:48px 48px;
+  }
+  /* SIN REVELADO POR SCROLL, A PROPÓSITO.
+     La versión anterior arrancaba en opacity:0 y dependía de un
+     IntersectionObserver para mostrarse. Si el JS no corre —o corre pero el
+     observer no dispara, que fue lo que pasó al probarla— la página queda en
+     negro. En una página cuyo único trabajo es ser leída (por personas y por
+     crawlers), una animación no vale ese modo de falla. El contenido se ve
+     siempre. */
+
+  /* ── Publicidad ───────────────────────────────────────────────────────────
+     Va abajo de todo a proposito: es la primera pagina que ve un visitante
+     nuevo, asi que el anuncio aparece recien despues de haber leido que es
+     MIIA — no compitiendo con el hero.
+     El borde y la etiqueta cumplen la politica de Google: el anuncio tiene que
+     ser distinguible del contenido del sitio. */
+  .ad-slot { border: 1px dashed rgba(71,85,105,.45); border-radius: 10px; background: rgba(8,13,24,.5); padding: 8px; }
+  .ad-lbl  { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: .09em; text-transform: uppercase; color: #475569; margin-bottom: 6px; }
+  .ad-slot ins { display: block; width: 100%; }
+</style>
+</head>
+<body>
+
+<!-- ══ NAV ══ -->
+<header class="sticky top-0 z-50 glass border-b border-surface-high">
+  <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+    <a href="/?app=1" class="flex items-center gap-2.5 group">
+      <div class="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center">
+        <span class="material-symbols-outlined text-primary" style="font-size:18px">radar</span>
+      </div>
+      <span class="font-semibold tracking-tight text-[15px]">MIIA</span>
+      <span class="font-mono text-[10px] px-1.5 py-0.5 rounded bg-warn/10 text-warn border border-warn/20">BETA</span>
+    </a>
+    <nav class="flex items-center gap-1 sm:gap-2">
+      <a href="/metodologia.html" class="hidden sm:block px-3 py-2 text-[13px] text-on-surface-dim hover:text-on-surface transition-colors">Metodología</a>
+      <a href="/glosario.html" class="hidden sm:block px-3 py-2 text-[13px] text-on-surface-dim hover:text-on-surface transition-colors">Glosario</a>
+      <a href="/auth/google" class="js-entrar px-4 py-2 text-[13px] font-medium rounded-lg bg-primary text-white hover:bg-primary-dim transition-colors">Entrar con Google</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ══ HERO ══ -->
+<section class="relative grid-bg border-b border-surface-high overflow-hidden">
+  <div class="absolute inset-0 bg-gradient-to-b from-transparent via-background/60 to-background"></div>
+  <div class="relative max-w-6xl mx-auto px-6 py-24 sm:py-32">
+    <div class="max-w-3xl fade-up">
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface border border-surface-high mb-8">
+        <span class="w-1.5 h-1.5 rounded-full bg-success"></span>
+        <span class="font-mono text-[11px] text-on-surface-dim tracking-wide">SISTEMA EN OPERACIÓN CONTINUA</span>
+      </div>
+
+      <h1 class="text-4xl sm:text-6xl font-semibold tracking-tight leading-[1.1] mb-6">
+        Inteligencia artificial que<br class="hidden sm:block"/>
+        <span class="text-primary">mide si acierta</span>.
+      </h1>
+
+      <p class="text-lg sm:text-xl text-on-surface-dim leading-relaxed mb-4 max-w-2xl">
+        MIIA reúne cinco motores de análisis sobre ETFs sectoriales y regionales, y
+        contrasta cada señal que emite contra el precio real que vino después.
+      </p>
+      <p class="text-[15px] text-on-surface-muted leading-relaxed max-w-2xl mb-10">
+        No opera, no ejecuta órdenes y no administra dinero. Produce análisis, y publica
+        junto a cada resultado el margen de error con el que lo midió.
+      </p>
+
+      <div class="flex flex-wrap gap-3">
+        <a href="#motores" class="px-5 py-3 rounded-lg bg-primary text-white text-[14px] font-medium hover:bg-primary-dim transition-colors inline-flex items-center gap-2">
+          Cómo funciona
+          <span class="material-symbols-outlined" style="font-size:18px">arrow_downward</span>
+        </a>
+        <a href="/auth/google" class="js-entrar px-5 py-3 rounded-lg border border-surface-high text-[14px] font-medium text-on-surface-dim hover:text-on-surface hover:border-primary/40 transition-colors">
+          Entrar con Google
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ ESTADO REAL (datos en vivo) ══ -->
+<section class="border-b border-surface-high bg-surface-low">
+  <div class="max-w-6xl mx-auto px-6 py-14">
+    <div class="flex items-baseline justify-between flex-wrap gap-2 mb-8">
+      <h2 class="text-[13px] font-mono tracking-widest text-on-surface-muted uppercase">Estado de la medición</h2>
+      <span class="text-[12px] text-on-surface-muted" id="live-stamp">Cargando datos en vivo…</span>
+    </div>
+
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="glass rounded-xl p-5">
+        <div class="font-mono text-3xl font-semibold text-on-surface mb-1" data-live="dias">—</div>
+        <div class="text-[12px] text-on-surface-dim">Días medidos</div>
+      </div>
+      <div class="glass rounded-xl p-5">
+        <div class="font-mono text-3xl font-semibold text-on-surface mb-1" data-live="nef">—</div>
+        <div class="text-[12px] text-on-surface-dim">Muestras independientes</div>
+      </div>
+      <div class="glass rounded-xl p-5">
+        <div class="font-mono text-3xl font-semibold text-secondary mb-1" data-live="emd">—</div>
+        <div class="text-[12px] text-on-surface-dim">Resolución del instrumento</div>
+      </div>
+      <div class="glass rounded-xl p-5" id="card-veredicto">
+        <div class="font-mono text-3xl font-semibold mb-1" data-live="veredicto">—</div>
+        <div class="text-[12px] text-on-surface-dim">Ventaja demostrada</div>
+        <div class="text-[13px] font-mono mt-1 hidden" id="veredicto-edge"></div>
+      </div>
+    </div>
+
+    <p class="mt-6 text-[13px] text-on-surface-muted leading-relaxed max-w-3xl">
+      Estos números salen del sistema en funcionamiento, no de un folleto. La
+      <strong class="text-on-surface-dim">resolución</strong> dice cuál es la ventaja más chica que la muestra
+      actual permitiría detectar: cualquier diferencia por debajo de ese valor es ruido, y
+      MIIA la reporta como tal en vez de presentarla como un logro.
+    </p>
+  </div>
+</section>
+
+<!-- ══ LOS MOTORES ══ -->
+<section id="motores" class="border-b border-surface-high">
+  <div class="max-w-6xl mx-auto px-6 py-20">
+    <div class="max-w-2xl mb-14 fade-up">
+      <h2 class="text-3xl sm:text-4xl font-semibold tracking-tight mb-4">Cinco motores, una decisión</h2>
+      <p class="text-[15px] text-on-surface-dim leading-relaxed">
+        Ninguno decide solo. Cada uno mira el mercado desde un ángulo distinto y sus
+        salidas se combinan con pesos que cambian según qué motor viene acertando.
+      </p>
+    </div>
+
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+      <article class="glass rounded-2xl p-6 fade-up hover:border-primary/30 transition-colors">
+        <div class="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 grid place-items-center mb-5">
+          <span class="material-symbols-outlined text-primary" style="font-size:20px">timeline</span>
+        </div>
+        <h3 class="font-mono text-[13px] tracking-wide text-on-surface mb-2">MOTOR PREDICTIVO</h3>
+        <p class="text-[14px] text-on-surface-dim leading-relaxed mb-4">
+          Redes LSTM entrenadas por instrumento sobre datos horarios, con 28 variables
+          técnicas: RSI, MACD, Bandas de Bollinger, ATR, VWAP, momentum, volumen y
+          patrones horarios y semanales.
+        </p>
+        <div class="font-mono text-[11px] text-on-surface-muted">13 modelos · uno por instrumento</div>
+      </article>
+
+      <article class="glass rounded-2xl p-6 fade-up hover:border-primary/30 transition-colors">
+        <div class="w-10 h-10 rounded-xl bg-secondary/10 border border-secondary/20 grid place-items-center mb-5">
+          <span class="material-symbols-outlined text-secondary" style="font-size:20px">newspaper</span>
+        </div>
+        <h3 class="font-mono text-[13px] tracking-wide text-on-surface mb-2">SENTIMIENTO DE NOTICIAS</h3>
+        <p class="text-[14px] text-on-surface-dim leading-relaxed mb-4">
+          Lee noticias financieras de múltiples proveedores y las puntúa con un motor
+          léxico enriquecido con vocabulario bursátil. Acumula evidencia por sector antes
+          de emitir una señal, en vez de reaccionar a un titular suelto.
+        </p>
+        <div class="font-mono text-[11px] text-on-surface-muted">50 instrumentos · ventana de evidencia acumulada</div>
+      </article>
+
+      <article class="glass rounded-2xl p-6 fade-up hover:border-primary/30 transition-colors">
+        <div class="w-10 h-10 rounded-xl bg-tertiary/10 border border-tertiary/20 grid place-items-center mb-5">
+          <span class="material-symbols-outlined text-tertiary" style="font-size:20px">hub</span>
+        </div>
+        <h3 class="font-mono text-[13px] tracking-wide text-on-surface mb-2">REDES COGNITIVAS</h3>
+        <p class="text-[14px] text-on-surface-dim leading-relaxed mb-4">
+          Cuatro capas neuronales que filtran, comprimen y puntúan la información antes de
+          que llegue a la decisión. Dos de ellas aprenden en línea: ajustan sus pesos con
+          cada resultado real que vuelve del mercado.
+        </p>
+        <div class="font-mono text-[11px] text-on-surface-muted">aprendizaje supervisado continuo</div>
+      </article>
+
+      <article class="glass rounded-2xl p-6 fade-up hover:border-primary/30 transition-colors">
+        <div class="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 grid place-items-center mb-5">
+          <span class="material-symbols-outlined text-primary" style="font-size:20px">functions</span>
+        </div>
+        <h3 class="font-mono text-[13px] tracking-wide text-on-surface mb-2">ENSAMBLE CUANTITATIVO</h3>
+        <p class="text-[14px] text-on-surface-dim leading-relaxed mb-4">
+          Consolida las señales neuronales con pesos adaptativos, incorpora contexto de
+          riesgo y crisis, consulta una memoria estadística de condiciones parecidas y
+          emite la decisión final con su horizonte y su nivel de convicción.
+        </p>
+        <div class="font-mono text-[11px] text-on-surface-muted">único decisor numérico del sistema</div>
+      </article>
+
+      <article class="glass rounded-2xl p-6 fade-up hover:border-primary/30 transition-colors">
+        <div class="w-10 h-10 rounded-xl bg-secondary/10 border border-secondary/20 grid place-items-center mb-5">
+          <span class="material-symbols-outlined text-secondary" style="font-size:20px">chat_bubble</span>
+        </div>
+        <h3 class="font-mono text-[13px] tracking-wide text-on-surface mb-2">MOTOR LINGÜÍSTICO</h3>
+        <p class="text-[14px] text-on-surface-dim leading-relaxed mb-4">
+          Traduce la decisión numérica a lenguaje entendible: qué se movió, qué motor pesó
+          más, qué tan parecida es la situación a otras del pasado y qué nivel de riesgo
+          acompaña a la señal.
+        </p>
+        <div class="font-mono text-[11px] text-on-surface-muted">explicación por cada decisión</div>
+      </article>
+
+      <article class="rounded-2xl p-6 fade-up border border-success/25 bg-success/[0.04]">
+        <div class="w-10 h-10 rounded-xl bg-success/10 border border-success/25 grid place-items-center mb-5">
+          <span class="material-symbols-outlined text-success" style="font-size:20px">fact_check</span>
+        </div>
+        <h3 class="font-mono text-[13px] tracking-wide text-success mb-2">CIRCUITO DE VERIFICACIÓN</h3>
+        <p class="text-[14px] text-on-surface-dim leading-relaxed mb-4">
+          El motor que hace a MIIA distinta. Guarda cada señal con su precio de entrada,
+          espera a que venza su horizonte y la contrasta contra el precio real. El
+          resultado vuelve a las redes como entrenamiento y a las métricas como evidencia.
+        </p>
+        <div class="font-mono text-[11px] text-success/70">horizonte de 24 a 72 horas</div>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══ LA PREGUNTA HONESTA ══ -->
+<section class="border-b border-surface-high bg-surface-low">
+  <div class="max-w-6xl mx-auto px-6 py-20">
+    <div class="grid lg:grid-cols-2 gap-14 items-start">
+
+      <div class="fade-up">
+        <h2 class="text-3xl sm:text-4xl font-semibold tracking-tight mb-5">
+          La pregunta que hace la diferencia
+        </h2>
+        <p class="text-[15px] text-on-surface-dim leading-relaxed mb-4">
+          Casi todos los sistemas de este tipo se preguntan <em class="text-on-surface">«¿sube el
+          mercado?»</em>. En un mercado alcista, responder «sí» siempre acierta cerca del 78 % de
+          las veces — sin ningún modelo detrás. Un sistema puede exhibir un 80 % de acierto y no
+          tener ninguna habilidad.
+        </p>
+        <p class="text-[15px] text-on-surface-dim leading-relaxed mb-4">
+          MIIA se pregunta otra cosa: <strong class="text-primary">«¿este instrumento le gana al
+          promedio de los demás?»</strong>. Ahí la estrategia trivial acierta el 50 % por
+          construcción, y cualquier punto por encima tiene que salir de algún criterio real.
+        </p>
+        <p class="text-[15px] text-on-surface-muted leading-relaxed">
+          Es una pregunta mucho más difícil y produce números mucho menos vistosos. Es la
+          razón por la que se eligió.
+        </p>
+      </div>
+
+      <div class="space-y-3 fade-up">
+        <div class="glass rounded-xl p-5 border-danger/20">
+          <div class="flex items-center justify-between mb-3">
+            <span class="font-mono text-[11px] tracking-wide text-on-surface-muted">PREGUNTA FÁCIL</span>
+            <span class="font-mono text-[11px] text-danger">descartada</span>
+          </div>
+          <div class="text-[15px] text-on-surface mb-3">«¿Sube el mercado?»</div>
+          <div class="flex items-center gap-3">
+            <div class="flex-1 h-1.5 rounded-full bg-surface-high overflow-hidden">
+              <div class="h-full bg-danger/60" style="width:78%"></div>
+            </div>
+            <span class="font-mono text-[12px] text-on-surface-dim w-24 text-right">78 % sin modelo</span>
+          </div>
+        </div>
+
+        <div class="glass rounded-xl p-5 border-success/25">
+          <div class="flex items-center justify-between mb-3">
+            <span class="font-mono text-[11px] tracking-wide text-on-surface-muted">PREGUNTA HONESTA</span>
+            <span class="font-mono text-[11px] text-success">en uso</span>
+          </div>
+          <div class="text-[15px] text-on-surface mb-3">«¿Le gana al promedio de los 50?»</div>
+          <div class="flex items-center gap-3">
+            <div class="flex-1 h-1.5 rounded-full bg-surface-high overflow-hidden">
+              <div class="h-full bg-success/60" style="width:50%"></div>
+            </div>
+            <span class="font-mono text-[12px] text-on-surface-dim w-24 text-right">50 % sin modelo</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══ QUÉ NO ES ══ -->
+<section class="border-b border-surface-high">
+  <div class="max-w-6xl mx-auto px-6 py-20">
+    <div class="max-w-2xl mb-12 fade-up">
+      <h2 class="text-3xl sm:text-4xl font-semibold tracking-tight mb-4">Qué MIIA no es</h2>
+      <p class="text-[15px] text-on-surface-dim leading-relaxed">
+        Tan importante como lo que hace. Estas líneas no se cruzan.
+      </p>
+    </div>
+
+    <div class="grid sm:grid-cols-2 gap-x-10 gap-y-6">
+      <div class="flex gap-4 fade-up">
+        <span class="material-symbols-outlined text-danger shrink-0 mt-0.5" style="font-size:20px">block</span>
+        <div>
+          <h3 class="text-[15px] font-medium text-on-surface mb-1">No es asesoramiento financiero</h3>
+          <p class="text-[14px] text-on-surface-dim leading-relaxed">Es una herramienta de información y análisis. La decisión de invertir, y su responsabilidad, son siempre del usuario.</p>
+        </div>
+      </div>
+      <div class="flex gap-4 fade-up">
+        <span class="material-symbols-outlined text-danger shrink-0 mt-0.5" style="font-size:20px">block</span>
+        <div>
+          <h3 class="text-[15px] font-medium text-on-surface mb-1">No opera ni administra dinero</h3>
+          <p class="text-[14px] text-on-surface-dim leading-relaxed">No ejecuta órdenes, no se conecta a tu bróker y no toca fondos de nadie.</p>
+        </div>
+      </div>
+      <div class="flex gap-4 fade-up">
+        <span class="material-symbols-outlined text-danger shrink-0 mt-0.5" style="font-size:20px">block</span>
+        <div>
+          <h3 class="text-[15px] font-medium text-on-surface mb-1">No promete rentabilidad</h3>
+          <p class="text-[14px] text-on-surface-dim leading-relaxed">Es un modelo estadístico en beta que puede fallar. Los resultados pasados no garantizan resultados futuros.</p>
+        </div>
+      </div>
+      <div class="flex gap-4 fade-up">
+        <span class="material-symbols-outlined text-danger shrink-0 mt-0.5" style="font-size:20px">block</span>
+        <div>
+          <h3 class="text-[15px] font-medium text-on-surface mb-1">No afirma tener una ventaja</h3>
+          <p class="text-[14px] text-on-surface-dim leading-relaxed">Mientras la medición no alcance significancia estadística, el sistema muestra «sin ventaja clara» — y lo dice en la interfaz, no en la letra chica.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ CIERRE ══ -->
+<section class="border-b border-surface-high bg-surface-low">
+  <div class="max-w-3xl mx-auto px-6 py-20 text-center fade-up">
+    <h2 class="text-2xl sm:text-3xl font-semibold tracking-tight mb-5 leading-snug">
+      Un instrumento de medición que todavía<br class="hidden sm:block"/> no terminó de medir.
+    </h2>
+    <p class="text-[15px] text-on-surface-dim leading-relaxed mb-9">
+      MIIA está en una corrida de evaluación en vivo. Cuando haya muestra suficiente, el
+      resultado se va a publicar tal como salga — incluso si es que no hay ventaja alguna.
+      Ese compromiso es el producto.
+    </p>
+    <div class="flex flex-wrap gap-3 justify-center">
+      <a href="/auth/google" class="js-entrar px-6 py-3 rounded-lg bg-primary text-white text-[14px] font-medium hover:bg-primary-dim transition-colors">Entrar con Google</a>
+      <a href="/metodologia.html" class="px-6 py-3 rounded-lg border border-surface-high text-[14px] font-medium text-on-surface-dim hover:text-on-surface hover:border-primary/40 transition-colors">Leer la metodología</a>
+    </div>
+  </div>
+</section>
+
+<!-- ══ PUBLICIDAD ══ -->
+<div class="max-w-6xl mx-auto px-6 pt-10">
+  <div class="ad-slot">
+    <div class="ad-lbl">Publicidad</div>
+    <ins class="adsbygoogle" style="display:block"
+         data-ad-client="ca-pub-0000000000000000"
+         data-ad-format="auto"
+         data-full-width-responsive="true"></ins>
+  </div>
+</div>
+<script>try{(adsbygoogle=window.adsbygoogle||[]).push({})}catch(e){}</script>
+<script>
+// Para usar MIIA hay que entrar con Google (20-nov-2026). Si ya hay una sesión
+// vigente, los botones llevan directo al panel en vez de volver a pedir el login.
+(function(){
+  try {
+    var t = localStorage.getItem("miia_jwt"); if (!t) return;
+    var p = JSON.parse(atob(t.split(".")[1].replace(/-/g,"+").replace(/_/g,"/")));
+    if (p.exp && p.exp*1000 <= Date.now()+60000) return;
+    document.querySelectorAll("a.js-entrar").forEach(function(a){ a.href="/"; a.textContent="Ir al panel"; });
+  } catch(_) {}
+})();
+</script>
+
+<!-- ══ FOOTER ══ -->
+<footer class="max-w-6xl mx-auto px-6 py-12">
+  <div class="flex flex-wrap gap-x-6 gap-y-2 mb-6 text-[13px]">
+    <a href="/?app=1" class="text-on-surface-dim hover:text-primary transition-colors">Inicio</a>
+    <a href="/metodologia.html" class="text-on-surface-dim hover:text-primary transition-colors">Metodología</a>
+    <a href="/glosario.html" class="text-on-surface-dim hover:text-primary transition-colors">Glosario</a>
+    <a href="/ayuda.html" class="text-on-surface-dim hover:text-primary transition-colors">Ayuda</a>
+    <a href="/legal.html" class="text-on-surface-dim hover:text-primary transition-colors">Aviso legal</a>
+  </div>
+  <p class="text-[12px] text-on-surface-muted leading-relaxed max-w-4xl">
+    <strong class="text-on-surface-dim">MIIA V4 (BETA) es un modelo de IA estadístico que puede fallar.</strong>
+    No es un asesor financiero: es una página de información financiera asistida por IA. La
+    decisión final es siempre del usuario, no de MIIA — por ello no nos hacemos responsables
+    por pérdidas ni decisiones. Toda inversión implica riesgo de pérdida. Los datos de mercado
+    y noticias provienen de proveedores externos y están sujetos a su disponibilidad y exactitud.
+  </p>
+</footer>
+
+<script>
+// ── Datos en vivo del endpoint de backtesting ───────────────────────────────
+// Regla de la casa: se muestra el número real o se muestra "—". Nunca un
+// placeholder que se pueda confundir con una medición.
+// TIMEOUT (30-ago-2026): era 8000 ms y fallaba de forma consistente en
+// producción — la sección entera mostraba "—" con el endpoint sano.
+//
+// Medido: /api/backtesting/professional tarda 4,6-6,1 s (agrega sobre 207.833
+// decisiones sin caché de respuesta). A eso hay que sumarle la cola del
+// navegador: en el arranque esta página carga Tailwind CDN, AdSense,
+// Cloudflare y las fuentes, y el límite de conexiones por origen deja la
+// petición esperando ANTES de salir. Con 8 s no había margen para las dos
+// cosas, y el aborto caía en el catch → "—".
+//
+// 20 s más un reintento cubre el peor caso medido con holgura. La causa de
+// fondo (la latencia del endpoint) se ataca del lado del servidor con una
+// caché de respuesta; esto es la defensa del cliente, no el arreglo.
+(async function () {
+  const CLAVES = ['dias', 'nef', 'emd', 'veredicto'];
+  const set = (k, v) => {
+    const el = document.querySelector('[data-live="' + k + '"]');
+    if (el) el.textContent = v;
+  };
+  const stamp = document.getElementById('live-stamp');
+
+  // Estado de carga explícito. "—" significa "medimos y no hay dato"; mientras
+  // la petición está en vuelo eso es mentira. "…" dice la verdad: todavía no
+  // llegó. Sin esto, seis segundos de espera se leen como un error.
+  CLAVES.forEach(k => set(k, '…'));
+  if (stamp) stamp.textContent = 'Consultando datos en vivo…';
+
+  // AbortSignal.timeout no existe en navegadores viejos. Sin este guard, la
+  // llamada lanzaba TypeError y caía al catch: la sección quedaba en "—" para
+  // siempre, sin haber intentado la petición nunca.
+  const conTimeout = ms =>
+    (typeof AbortSignal !== 'undefined' && AbortSignal.timeout)
+      ? { signal: AbortSignal.timeout(ms) }
+      : {};
+
+  // <ventaja-azar> ═══ La ventaja contra el AZAR con la misma mezcla (6-nov-2026) ═══
+  // El panel mostraba «Ventaja real −1,2 pp» contra un base rate de 55,1 %: lo que
+  // acierta quien dice SIEMPRE «le gana al promedio». Eso no es el azar para el
+  // ranking, que compra los k mejores y vende los k peores (mitad y mitad), y con
+  // «subió» de mayoría ese edge sólo mira las SELL: las BUY no lo mueven.
+  // El azar honesto es lo que acierta un sistema SIN información con la misma
+  // mezcla de BUY y SELL: azar = q·p + (1−q)·(1−p). Con 50/50 vale 50.
+  // El backend lo manda (`azar_mezcla`, `edge_vs_azar`) desde el 6-nov; si el
+  // Python todavía no se desplegó, se calcula acá con la precisión de cada señal.
+  // Hay copias en que-es-miia.html y en scripts/chat_evidencia.js: sim38 verifica
+  // que las tres den lo mismo que `_ventaja_vs_azar` de miia_chatbot.py.
+  function _miiaVentajaAzar(d) {
+    if (!d || typeof d !== "object") return d;
+    if (d.azar_mezcla != null && d.edge_vs_azar != null) return d;   // lo mandó el backend
+    const acc = d.accuracy_directional, aBuy = d.precision_buy, aSell = d.precision_sell;
+    if (acc == null || (aBuy == null && aSell == null)) return d;
+    // La fracción de BUY (q) no viene en el payload: se busca la que mejor
+    // reproduce el acierto y el base rate que sí vienen (mínimos cuadrados sobre
+    // 2001 valores; con datos exactos los reproduce justo, y con el redondeo a un
+    // decimal el error queda en ±0,25 pp). Con un solo lado, q es 0 o 1 y la
+    // ventaja da 0: un sistema de un solo lado no puede mostrar ventaja.
+    let q = aBuy == null ? 0 : aSell == null ? 1 : 0.5;
+    let p = aBuy == null ? 100 - aSell : aBuy;            // % que le ganó al promedio
+    if (aBuy != null && aSell != null) {
+      let mejor = Infinity;
+      for (let i = 0; i <= 2000; i++) {
+        const qi = i / 2000, pi = qi * aBuy + (1 - qi) * (100 - aSell);
+        const e = (qi * aBuy + (1 - qi) * aSell - acc) ** 2
+                + (d.base_rate != null ? (Math.max(pi, 100 - pi) - d.base_rate) ** 2 : 0)
+                + 1e-6 * (qi - 0.5) ** 2;                 // empate → la mezcla pareja
+        if (e < mejor) { mejor = e; q = qi; p = pi; }
+      }
+    }
+    const azar = q * p + (1 - q) * (100 - p);
+    d.azar_mezcla  = Math.round(azar * 10) / 10;
+    d.edge_vs_azar = Math.round((acc - azar) * 10) / 10;
+    if (d.edge_azar_significativo == null && d.accuracy_ci_low != null)
+      d.edge_azar_significativo = d.accuracy_ci_low > d.azar_mezcla;
+    if (d.sesgo_comun == null && aBuy != null && aSell != null)
+      d.sesgo_comun = Math.round((aBuy - aSell) / 2 * 10) / 10;
+    return d;
+  }
+  // </ventaja-azar>
+
+  async function pedir(ms) {
+    const r = await fetch('/api/backtesting/professional', conTimeout(ms));
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }
+
+  let d = null;
+  try {
+    d = await pedir(20000);
+  } catch (e1) {
+    try { d = await pedir(25000); }   // un reintento, por si pegó un pico
+    catch (e2) { d = null; }
+  }
+
+  if (!d) {
+    // Falla silenciosa hacia "—": preferible a inventar un número.
+    CLAVES.forEach(k => set(k, '—'));
+    if (stamp) stamp.textContent = 'Datos en vivo no disponibles en este momento';
+    return;
+  }
+  // La ventaja contra el azar con la misma mezcla BUY/SELL (6-nov-2026), el
+  // mismo número que el panel de Backtesting. Ver _miiaVentajaAzar.
+  _miiaVentajaAzar(d);
+
+  set('dias', d.dias_medidos != null ? d.dias_medidos : '—');
+  set('nef',  d.n_efectivo   != null ? d.n_efectivo   : '—');
+  set('emd',  d.edge_min_detectable != null ? '±' + d.edge_min_detectable + ' pp' : '—');
+
+  const el = document.querySelector('[data-live="veredicto"]');
+  const card = document.getElementById('card-veredicto');
+  const edgeLine = document.getElementById('veredicto-edge');
+  if (el) {
+    if (d.edge_azar_significativo === true) {
+      // Ventaja REAL (acc_ci_low > azar_mezcla): se muestra con el número y se
+      // enciende la tarjeta. Sólo acá — nunca sobre un edge no significativo,
+      // que es justo lo que el panel de Backtesting dejó de hacer el 15-oct.
+      el.textContent = 'Sí';
+      el.className = 'font-mono text-3xl font-semibold mb-1 text-success';
+      if (card) card.style.boxShadow = '0 0 0 1px rgba(16,185,129,.55)';
+      if (edgeLine && d.edge_vs_azar != null) {
+        edgeLine.textContent = '+' + (+d.edge_vs_azar).toFixed(1) + ' pp sobre el azar';
+        edgeLine.className = 'text-[13px] font-mono mt-1 text-success';
+      }
+    } else {
+      el.textContent = 'Todavía no';
+      el.classList.add('text-on-surface-dim');
+      el.classList.remove('text-3xl');
+      el.classList.add('text-2xl');
+    }
+  }
+  if (stamp) stamp.textContent = 'Datos en vivo · actualizado ahora';
+})();
+
+// (No hay animación de entrada. Ver la nota en el <style>.)
+</script>
+
+</body>
+</html>

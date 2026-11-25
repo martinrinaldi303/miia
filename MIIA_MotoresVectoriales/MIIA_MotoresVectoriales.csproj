@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <!-- 🔒 Control total de compilación -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+
+    <!-- 🎯 ENTRYPOINT EXPLÍCITO (ANTI-CS0017) -->
+    <!-- Cambia el namespace si corresponde -->
+    <StartupObject>MotorVectorialTester</StartupObject>
+  </PropertyGroup>
+
+  <!-- =======================
+       📦 DEPENDENCIAS
+       ======================= -->
+  <ItemGroup>
+    <PackageReference Include="MathNet.Numerics" Version="5.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.10" />
+    <PackageReference Include="Microsoft.ML" Version="3.0.1" />
+    <PackageReference Include="Serilog" Version="4.3.1" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
+    <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
+    <PackageReference Include="StackExchange.Redis" Version="2.7.33" />
+    <PackageReference Include="System.Data.OleDb" Version="10.0.2" />
+    <PackageReference Include="System.Text.Json" Version="9.0.10" />
+  </ItemGroup>
+
+  <!-- =======================
+       🧠 MOTORES DINÁMICOS
+       ======================= -->
+  <ItemGroup>
+    <Compile Include="..\scripts\class3.cs" Condition="Exists('..\scripts\class3.cs')" />
+    <Compile Include="..\scripts\class10.cs" Condition="Exists('..\scripts\class10.cs')" />
+    <Compile Include="..\scripts\class18.cs" Condition="Exists('..\scripts\class18.cs')" />
+    <Compile Include="..\scripts\class35.cs" Condition="Exists('..\scripts\class35.cs')" />
+    <Compile Include="..\scripts\class40.cs" Condition="Exists('..\scripts\class40.cs')" />
+    <Compile Include="..\scripts\class41.cs" Condition="Exists('..\scripts\class41.cs')" />
+
+    <!-- 🎯 ENTRYPOINT PRINCIPAL -->
+    <Compile Include="MotorVectorialTester.cs" />
+  </ItemGroup>
+
+</Project>
+
+
+
