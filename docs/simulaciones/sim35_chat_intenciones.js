@@ -496,7 +496,7 @@ seccion("10 · Revisión del 6-nov: frases que se escapaban");
   const ses = {};
   chequear("«soy agresivo» suelto arma la cartera", PF.decidir(ses, "soy agresivo", cl("soy agresivo")).accion === "armar" && ses.perfil === "agresivo");
   chequear("«soy de Rosario» no es un perfil", PF.decidir({}, "soy de Rosario", cl("soy de Rosario")).accion === "nada");
-  chequear("class25B borra la cartera de memoria y disco", c.includes('ef.subtipo === "borrar"') && /_portUsuario\.delete\(msg\.user_id\)\) _guardarPortUsuario\(\)/.test(c));
+  chequear("class25B borra la cartera de memoria y disco", c.includes('ef.subtipo === "borrar"') && /portsBorrar\(ePort, nB\);[\s\S]{0,200}_guardarPortUsuario\(\)/.test(c));
 }
 
 // ── 11 · Temas de fuera del mercado van a la charla, no al ranking (8-nov-2026) ──

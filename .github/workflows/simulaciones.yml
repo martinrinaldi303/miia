@@ -1,0 +1,131 @@
+# Simulaciones de MIIA en GitHub Actions.
+#
+# Corren el código de producción (class*.js, class*.cpp, class*.cs, MIIA/*.py)
+# contra datos de prueba versionados en docs/simulaciones/datos/. No necesitan
+# Redis, MySQL ni claves: son las mismas pruebas "en frío" que corre probar.ps1.
+#
+# Se disparan en cada push y PR a main, y a mano desde la pestaña Actions
+# ("Run workflow").
+name: Simulaciones
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  node-python:
+    name: Node y Python
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: npm ci --no-audit --no-fund
+      - name: Simulaciones de Node
+        run: |
+          set -u
+          fallas=0
+          for s in sim1_credito sim2_umbral sim3b_decision sim4_control \
+                   sim6_indice_equiponderado sim8_contrato_feedback sim10_universo \
+                   sim11_seguridad sim14_class43 sim16_cuota_class7 sim18_linux \
+                   sim19_impacto_por_ticker sim20_par_class40_41 sim22_envelope_class1 \
+                   sim24_cola_class30 sim32_llm_local sim35_chat_intenciones \
+                   sim36_mi_portfolio sim37_cartera_conversacion sim38_ventaja_azar \
+                   sim42_sesion sim63_tres_portafolios sim_identidad sim_mercado sim_metricas; do
+            echo "::group::$s"
+            if timeout 300 node "docs/simulaciones/$s.js"; then r=ok; else r=FALLA; fallas=$((fallas+1)); fi
+            echo "::endgroup::"
+            echo "$r  $s" | tee -a resumen.txt
+          done
+          echo "fallas=$fallas"
+          [ "$fallas" -eq 0 ]
+      - name: Simulaciones de Python
+        if: always()
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          set -u
+          fallas=0
+          for s in sim12_rendimiento_api sim15_base_ewma sim30_rotacion_lstm \
+                   sim31_marcador_lstm sim33_semana_mercado sim34_chat_contexto \
+                   sim39_rank_ic_beta; do
+            echo "::group::$s"
+            if timeout 300 python "docs/simulaciones/$s.py"; then r=ok; else r=FALLA; fallas=$((fallas+1)); fi
+            echo "::endgroup::"
+            echo "$r  $s" | tee -a resumen.txt
+          done
+          [ "$fallas" -eq 0 ]
+      - name: Resumen
+        if: always()
+        run: |
+          { echo "### Node y Python"; echo '```'; cat resumen.txt 2>/dev/null; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+  cpp:
+    name: C++ (class21-25A con -DMIIA_SIN_MAIN)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Dependencias (spdlog, fmt, nlohmann-json, hiredis, redis-plus-plus)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq g++ cmake libspdlog-dev libfmt-dev nlohmann-json3-dev libhiredis-dev
+          if ! sudo apt-get install -y -qq libredis++-dev; then
+            git clone --depth 1 https://github.com/sewenew/redis-plus-plus.git /tmp/rpp
+            cmake -S /tmp/rpp -B /tmp/rpp/build -DREDIS_PLUS_PLUS_BUILD_TEST=OFF -DREDIS_PLUS_PLUS_CXX_STANDARD=17
+            sudo cmake --build /tmp/rpp/build --target install -j 4
+            sudo ldconfig
+          fi
+      - name: Simulaciones de C++
+        run: |
+          set -u
+          fallas=0
+          for b in 7 9 23 27 28 29; do
+            echo "::group::build_sim$b"
+            if bash "docs/simulaciones/build_sim$b.sh"; then r=ok; else r=FALLA; fallas=$((fallas+1)); fi
+            echo "::endgroup::"
+            echo "$r  sim$b" | tee -a resumen.txt
+          done
+          [ "$fallas" -eq 0 ]
+      - name: sim13 (el ensamble entero, con el binario de sim9)
+        if: always()
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          # build_sim9.sh deja el binario en /tmp/miia-sim9; sim13 lo busca en /tmp/miia-sim7.
+          mkdir -p /tmp/miia-sim7 && cp /tmp/miia-sim9/sim9.exe /tmp/miia-sim7/ 2>/dev/null || true
+          python docs/simulaciones/sim13_ensamble.py
+      - name: Resumen
+        if: always()
+        run: |
+          { echo "### C++"; echo '```'; cat resumen.txt 2>/dev/null; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+  dotnet:
+    name: .NET (class3 y class10)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+      - name: sim17 — el vector de class10 (22 dims)
+        run: dotnet run --project docs/simulaciones/sim17_class10
+      - name: sim21 — el vector de noticias de class3
+        if: always()
+        run: dotnet run --project docs/simulaciones/sim21_class3

@@ -329,7 +329,7 @@ seccion("7 · Guardas de regresión sobre class25B");
   // lleva un tope duro de 9 s; el `[503]` hace que _handleGeminiError lo pause.
   chequear("la charla acota el tiempo de Ollama (respaldo rápido)",
     c.includes("const correrLocal = async (timeoutMs = charla ? LLM_CHARLA_TIMEOUT_MS : undefined")
-    && c.includes("timeoutMs });"),
+    && c.includes("timeoutMs, signal });"),
     "sin esto, un 503 de Gemini + Ollama 18 s se pasa de los 25 s y el chat queda mudo");
   chequear("Gemini en charla lleva un tope DURO que lo pausa al colgarse",
     c.includes("Promise.race") && c.includes("[503] gemini timeout charla"),
@@ -352,10 +352,20 @@ seccion("7 · Guardas de regresión sobre class25B");
   }
   chequear("la charla corre Gemini y Ollama en CARRERA por defecto",
     c.includes('process.env.CLASS25B_CHARLA_CARRERA ?? "1"')
-    && /if \(hayLocal && CHARLA_EN_CARRERA && !opts\.sinCarrera\)[\s\S]{0,400}const pLocal = correrLocal\(LLM_CHARLA_TIMEOUT_MS, estado\);[\s\S]{0,80}const g = await correrGemini\(\);/.test(c),
+    && /if \(hayLocal && CHARLA_EN_CARRERA && !opts\.sinCarrera\)[\s\S]{0,900}const pLocal = correrLocal\(LLM_CHARLA_TIMEOUT_MS, estado, ctrl\.signal\);[\s\S]{0,80}const g = await correrGemini\(\);/.test(c),
     "Ollama arranca ANTES de esperar a Gemini, no después de su fallo (8-nov; el deploy del 13-nov la había pisado)");
   chequear("si contestó Gemini, la de Ollama llega tarde y no pisa la caché",
-    c.includes('if (g) { estado.gano = "gemini"; return g; }') && c.includes("if (!tarde) _geminiCacheSet(_claveCache, r.texto);"));
+    c.includes('if (g) { estado.gano = "gemini"; ctrl.abort(); return g; }') && c.includes("if (!tarde) _geminiCacheSet(_claveCache, r.texto);"));
+  // 26-nov-2026: si contesta Gemini se CANCELA Ollama. Sin esto la charla siguiente
+  // esperaba en fila detrás de una respuesta que nadie usaba, vencía y abría el
+  // cortacircuitos del motor local.
+  chequear("si contestó Gemini, se cancela el pedido a Ollama",
+    c.includes("const ctrl = new AbortController();") && c.includes("ctrl.abort(); return g;"));
+  chequear("la cancelación no cuenta como falla del motor local",
+    c.includes('if (e?.name === "AbortError") return null;'));
+  chequear("la respuesta del chat devuelve el id de la consulta",
+    c.includes("query_id:   msg.id || null,"),
+    "sin esto /api/ask empareja sólo por sesión y dos mensajes seguidos se cruzan");
   chequear("la reescritura de respuestas con datos NO corre en carrera",
     /_geminiMultiTurno\(texto, \{ _modo: "reescribir"[\s\S]{0,300}sinCarrera: true/.test(c),
     "en carrera Ollama trabajaría en cada pregunta con datos aunque conteste Gemini");
@@ -681,7 +691,7 @@ reiniciar(); modo = "ok";
 
   const c25 = fs.readFileSync(path.join(RAIZ, "scripts/class25B.js"), "utf8");
   chequear("class25B precalienta al entrar al router del chat",
-    /async function _chatConRouter[\s\S]{0,400}LLM\.precalentar\(\)/.test(c25));
+    /async function _chatConRouter[\s\S]{0,600}LLM\.precalentar\(\)/.test(c25));
   chequear("y se apaga sin recompilar (MIIA_LLM_PRECALENTAR=0)", c25.includes('process.env.MIIA_LLM_PRECALENTAR ?? "1"'));
 }
 

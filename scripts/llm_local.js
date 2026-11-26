@@ -117,8 +117,10 @@ export function cortadoMin() {
 }
 
 // ── Transporte ─────────────────────────────────────────────────────────────
-function pedir(ruta, cuerpo, timeoutMs = TIMEOUT_MS) {
+function pedir(ruta, cuerpo, timeoutMs = TIMEOUT_MS, signal = undefined) {
   return new Promise((resolve, reject) => {
+    // 26-nov-2026: cancelable. Cerrar el socket hace que Ollama deje de generar.
+    if (signal?.aborted) { const e = new Error("cancelado"); e.name = "AbortError"; return reject(e); }
     let u;
     try { u = new URL(ruta, URL_BASE); } catch (e) { return reject(new Error(`URL invalida: ${e.message}`)); }
     const datos = cuerpo == null ? null : Buffer.from(JSON.stringify(cuerpo), "utf8");
@@ -148,6 +150,9 @@ function pedir(ruta, cuerpo, timeoutMs = TIMEOUT_MS) {
     // a mano o el pedido queda colgado y con él el turno del chat.
     req.setTimeout(timeoutMs, () => req.destroy(new Error(`timeout ${timeoutMs} ms`)));
     req.on("error", e => reject(e));
+    if (signal) signal.addEventListener("abort", () => {
+      const e = new Error("cancelado"); e.name = "AbortError"; req.destroy(e);
+    }, { once: true });
     if (datos) req.write(datos);
     req.end();
   });
@@ -246,7 +251,7 @@ export async function generar({ prompt, system = "", maxTokens, temperatura, tim
  * Gemini, que exige alternancia estricta user/model— es justamente de donde
  * salen los prompts mal formados.
  */
-export async function conversar({ mensajes, maxTokens, temperatura, timeoutMs } = {}) {
+export async function conversar({ mensajes, maxTokens, temperatura, timeoutMs, signal } = {}) {
   const msgs = (mensajes || [])
     .filter(m => m && m.texto && String(m.texto).trim())
     .map(m => ({
@@ -265,7 +270,7 @@ export async function conversar({ mensajes, maxTokens, temperatura, timeoutMs } 
       stream: false,
       keep_alive: KEEP_ALIVE,
       options: _opciones({ maxTokens, temperatura }),
-    }, timeoutMs);
+    }, timeoutMs, signal);
 
     const texto = String(r?.message?.content || "").trim();
     if (!texto) throw new Error("respuesta vacia");
@@ -274,7 +279,7 @@ export async function conversar({ mensajes, maxTokens, temperatura, timeoutMs } 
     _exito(ms, tk, _evalNs(r));
     return { texto, ms, tokens: tk, tps: _m.tps, modelo: MODELO };
   } catch (e) {
-    _fallo(e.message);
+    if (e?.name !== "AbortError") _fallo(e.message);   // cancelar no es fallar
     throw e;
   }
 }

@@ -66,6 +66,11 @@ import { clasificar as chatClasificar, detectarNombre as chatDetectarNombre } fr
 import { armarPanel, evidencia as chatEvidencia, validarRespuesta, estadoNYSE } from "./chat_evidencia.js";
 import { redactar as chatRedactar, redactarPortfolio, promptCharla, firmaCharla } from "./chat_redactor.js";
 import { normalizarPortfolio, evaluarPortfolio, redactarMiPortfolio, veredictoPortfolio } from "./chat_portfolio.js";
+import { normalizarEntrada as portsNormalizarEntrada, slot as portsSlot, agregar as portsAgregar, reemplazar as portsReemplazar,
+         actualizarActivo as portsActualizarActivo, activar as portsActivar, borrar as portsBorrar, activoDe as portsActivo,
+         resumen as portsResumen, entenderComando as portsComando, elegirReemplazo as portsElegirReemplazo,
+         hablaDeCarteras as portsHablaDeCarteras, textoLista as portsTextoLista, textoPedirReemplazo as portsTextoPedirReemplazo,
+         textoActivado as portsTextoActivado, textoBorrado as portsTextoBorrado, textoNoExiste as portsTextoNoExiste } from "./chat_portafolios.js";
 import { decidir as decidirCartera, extraerCapital, armarCartera, redactarCartera, preguntarPerfil,
          repreguntar as repreguntarPerfil, entender as entenderPerfilCapital } from "./chat_perfil.js";
 // Armado automático (IA) o manual, y el plazo/umbral de cada usuario (13-nov-2026).
@@ -3074,7 +3079,7 @@ async function _geminiMultiTurno(texto, ctx, historial = [], bypassGrace = false
   // falso del modelo que existe sólo para que Gemini acepte un system prompt.
   // `estado.gano` lo marca la carrera: si Gemini ya contestó, la respuesta de
   // Ollama llega tarde y no pisa la caché (sigue contando como uso del motor).
-  const correrLocal = async (timeoutMs = charla ? LLM_CHARLA_TIMEOUT_MS : undefined, estado = null) => {
+  const correrLocal = async (timeoutMs = charla ? LLM_CHARLA_TIMEOUT_MS : undefined, estado = null, signal = undefined) => {
     try {
       const mensajes = [{ rol: "system", texto: charla ? promptCharla(ctx) : _buildAdvisorPromptLocal(texto, ctx) }];
       // `opts.localTurnos` / `opts.localMaxTokens` (13-nov-2026): la reescritura
@@ -3089,7 +3094,7 @@ async function _geminiMultiTurno(texto, ctx, historial = [], bypassGrace = false
 
       const r = await LLM.conversar({ mensajes, maxTokens: opts.localMaxTokens || (charla ? LLM_CHARLA_MAX_TOKENS : LLM_LOCAL_MAX_TOKENS),
                                       temperatura: charla ? 0.90 : 0.80,
-                                      timeoutMs });
+                                      timeoutMs, signal });
       const tarde = estado?.gano === "gemini";
       _llmLocalUsos++;
       log(`✅ ${r.modelo} local (${mensajes.length} turnos, ${String(r.texto || "").length} chars, `
@@ -3102,6 +3107,8 @@ async function _geminiMultiTurno(texto, ctx, historial = [], bypassGrace = false
       if (!tarde) _geminiCacheSet(_claveCache, r.texto);
       return { texto: r.texto, motor: "local" };
     } catch (e) {
+      // Cancelado porque Gemini ya contestó: no es una falla del motor local.
+      if (e?.name === "AbortError") return null;
       _llmLocalFallos++;
       log(`⚠️ motor local falló: ${e.message}`, "warn");
       return null;
@@ -3193,10 +3200,16 @@ async function _geminiMultiTurno(texto, ctx, historial = [], bypassGrace = false
     if (hayLocal && CHARLA_EN_CARRERA && !opts.sinCarrera) {
       // Los dos a la vez: Ollama no espera a que Gemini falle para empezar. Si la
       // de Gemini no sirve (vacía o descartada por el validador), vale la de Ollama.
+      // 26-nov-2026: si contesta Gemini, se CANCELA el pedido a Ollama. Antes
+      // seguía generando ~10-20 s en segundo plano y, con OLLAMA_NUM_PARALLEL=1,
+      // la charla siguiente esperaba en fila detrás de una respuesta que nadie
+      // iba a usar: vencía su tope, contaba como falla, y con 3 seguidas el
+      // cortacircuitos apagaba el motor local de 5 a 30 min.
       const estado = { gano: null };
-      const pLocal = correrLocal(LLM_CHARLA_TIMEOUT_MS, estado);
+      const ctrl = new AbortController();
+      const pLocal = correrLocal(LLM_CHARLA_TIMEOUT_MS, estado, ctrl.signal);
       const g = await correrGemini();
-      if (g) { estado.gano = "gemini"; return g; }
+      if (g) { estado.gano = "gemini"; ctrl.abort(); return g; }
       return await pLocal;
     }
     const g = await correrGemini();
@@ -3228,9 +3241,15 @@ async function _publicarRespuesta(texto, msg, extra = null) {
     ts:         new Date().toISOString(),
     final:      true,
     session_id: msg.session_id || null,
+    // 26-nov-2026: el id de la consulta. /api/ask empareja por él; sin esto, dos
+    // mensajes seguidos de la misma sesión se cruzaban las respuestas.
+    query_id:   msg.id || null,
     user_id:    msg.user_id    || null,
     ...(extra || {}),
   };
+  // 26-nov-2026: la lista de portafolios del usuario viaja en cada respuesta, así
+  // el panel Portfolio queda al día en cualquier dispositivo sin pedirla aparte.
+  if (_uidPort(msg)) reply.mis_portafolios = portsResumen(_entradaPort(msg));
   _finTurnoHumano(msg);
   await redisPub.publish(CH_OUT, JSON.stringify(reply));
 }
@@ -3618,15 +3637,24 @@ const _CHAT_TEMAS = new Set(["opinion", "senal", "porque", "riesgo", "precio", "
 // vigencia?» contestaba «no encuentro una cartera tuya». Ahora se guarda en
 // state/ (escritura atómica, sólo cuando cambia) y se relee al arrancar.
 // Acotada: 30 días y 2.000 usuarios (cada entrada son ~12 símbolos y pesos).
+// 26-nov-2026: hasta 3 portafolios por usuario, uno ACTIVO (chat_portafolios.js).
+// La clave es la CUENTA (`clave_portafolio`, que arma el Python con el JWT) y, si
+// el visitante no entró con Google, el id de su navegador (`user_id`).
 const _portUsuario = new Map();
 const PORT_USUARIO_TTL = Number(process.env.CLASS25B_PORT_DIAS || 30) * 86_400_000, PORT_USUARIO_MAX = 2000;
 const PORT_USUARIO_FILE = path.join(STATE_DIR, "class25b_portfolios_usuario.json");
 let _portUsuarioTimer = null;
 
+function _uidPort(msg) {
+  const k = msg?.clave_portafolio || msg?.user_id;
+  return k ? String(k).slice(0, 80) : null;
+}
+
 async function _escribirPortUsuario() {
+  // `resumen` va precalculado: el Python lo lee de este archivo para el panel.
   const filas = [..._portUsuario].map(([uid, e]) => ({ uid, guardado: e.guardado, config: e.config || null,
-    port: { ...e.port, ts: e.port.ts ? new Date(e.port.ts).toISOString() : null } }));
-  await _escribirAtomico(PORT_USUARIO_FILE, JSON.stringify({ version: 1, filas }));
+    activo: e.activo, ports: e.ports, resumen: portsResumen(e) }));
+  await _escribirAtomico(PORT_USUARIO_FILE, JSON.stringify({ version: 2, filas }));
 }
 function _guardarPortUsuario() {
   if (_portUsuarioTimer) return;
@@ -3646,49 +3674,84 @@ function _cargarPortUsuario() {
     for (const f of (Array.isArray(j?.filas) ? j.filas : [])) {
       if (!f?.uid || typeof f.uid !== "string" || !Number.isFinite(f.guardado)) continue;
       if (ahora - f.guardado > PORT_USUARIO_TTL) continue;
-      const p = normalizarPortfolio(f.port);      // lo leído se valida igual que lo de la web
-      if (p) _portUsuario.set(f.uid.slice(0, 80), { port: p, guardado: f.guardado, config: normalizarConfig(f.config) });
+      // v1 traía un solo `port`; normalizarEntrada lo migra a un slot.
+      const e = portsNormalizarEntrada(f, normalizarPortfolio, ahora);
+      if (!e || !e.ports.length) continue;
+      e.config = normalizarConfig(f.config);
+      _portUsuario.set(f.uid.slice(0, 80), e);
     }
     while (_portUsuario.size > PORT_USUARIO_MAX) _portUsuario.delete(_portUsuario.keys().next().value);
-    log(`👤 portafolios por usuario: ${_portUsuario.size} recuperados del disco`);
+    log(`👤 portafolios por usuario: ${_portUsuario.size} cuentas recuperadas del disco`);
   } catch (e) { log(`⚠️ portafolios por usuario: archivo ilegible, se arranca vacío (${e?.message})`, "warn"); }
 }
 _cargarPortUsuario();
 
-function _recordarPortfolio(msg, rec) {
-  const uid = msg?.user_id;
-  const p = normalizarPortfolio(rec);
-  if (!uid || !p) return;
-  const prev = _portUsuario.get(uid);
-  const igual = prev && JSON.stringify(prev.port) === JSON.stringify(p);
+function _entradaPort(msg) {
+  const uid = _uidPort(msg);
+  if (!uid) return null;
+  let e = _portUsuario.get(uid);
+  // Primera vez con la cuenta: lo que estaba guardado con el id del navegador
+  // se muda a la cuenta, así no se pierde al entrar con Google.
+  if (!e && msg?.clave_portafolio && msg?.user_id && String(msg.user_id).slice(0, 80) !== uid) {
+    const viejo = String(msg.user_id).slice(0, 80);
+    const e2 = _portUsuario.get(viejo);
+    if (e2) { _portUsuario.delete(viejo); _portUsuario.set(uid, e2); _guardarPortUsuario(); e = e2; }
+  }
+  if (!e) return null;
+  if (Date.now() - e.guardado > PORT_USUARIO_TTL) { _portUsuario.delete(uid); return null; }
+  return e;
+}
+function _tocarEntrada(uid, e) {
   _portUsuario.delete(uid);
-  // La config (plazo/umbral) la guarda class25B, no la web: se conserva al
-  // recibir la copia del navegador, que no la trae.
-  _portUsuario.set(uid, { port: p, guardado: Date.now(), config: prev?.config || null });
+  e.guardado = Date.now();
+  _portUsuario.set(uid, e);
   while (_portUsuario.size > PORT_USUARIO_MAX) _portUsuario.delete(_portUsuario.keys().next().value);
-  if (!igual) _guardarPortUsuario();   // la web la manda en cada mensaje: sólo se escribe si cambió
+  _guardarPortUsuario();
 }
 
-/** El portafolio del usuario: el que manda la web, si no el recordado acá. */
+/** La copia que manda la web pisa el ACTIVO (no agrega uno nuevo). */
+function _recordarPortfolio(msg, rec) {
+  const uid = _uidPort(msg);
+  const sl = portsSlot(rec, normalizarPortfolio);
+  if (!uid || !sl) return;
+  const prev = _portUsuario.get(uid);
+  if (prev && JSON.stringify(portsActivo(prev)) === JSON.stringify(sl.port)) return;   // sin cambios
+  _tocarEntrada(uid, portsActualizarActivo(prev, sl));
+}
+
+/**
+ * Un portafolio NUEVO (armado por MIIA o a mano). Si ya hay 3, no se guarda:
+ * queda pendiente en la sesión y se pregunta cuál reemplazar. Devuelve true si
+ * quedó guardado.
+ */
+function _guardarNuevoPortfolio(msg, sesion, rec) {
+  const uid = _uidPort(msg);
+  const sl = portsSlot(rec, normalizarPortfolio);
+  if (!uid || !sl) return false;
+  const e = _portUsuario.get(uid) || null;
+  const r = portsAgregar(e, sl);
+  if (!r.guardado) return false;
+  _tocarEntrada(uid, r.entrada);
+  return true;
+}
+
+/** El portafolio ACTIVO del usuario: el que manda la web, si no el guardado acá. */
 function _portfolioDelUsuario(msg) {
   const web = normalizarPortfolio(msg?.portfolio_usuario);
   if (web) { _recordarPortfolio(msg, msg.portfolio_usuario); return web; }
-  const e = msg?.user_id ? _portUsuario.get(msg.user_id) : null;
-  if (!e) return null;
-  if (Date.now() - e.guardado > PORT_USUARIO_TTL) { _portUsuario.delete(msg.user_id); return null; }
-  return e.port;
+  return portsActivo(_entradaPort(msg));
 }
 
-/** El plazo/umbral del usuario: el guardado por user_id, si no el de la sesión. */
+/** El plazo/umbral del usuario: el guardado por cuenta, si no el de la sesión. */
 function _configDelUsuario(msg, sesion) {
-  const e = msg?.user_id ? _portUsuario.get(msg.user_id) : null;
+  const e = _entradaPort(msg);
   return e?.config || sesion?.config || null;
 }
 function _guardarConfig(msg, sesion, cfg) {
   const prev = _configDelUsuario(msg, sesion) || {};
   const nuevo = normalizarConfig({ ...prev, ...cfg });
   sesion.config = nuevo;
-  const e = msg?.user_id ? _portUsuario.get(msg.user_id) : null;
+  const e = _entradaPort(msg);
   if (e) { e.config = nuevo; _guardarPortUsuario(); }
   return nuevo;
 }
@@ -3719,7 +3782,14 @@ async function _chatPublicarCartera(texto, msg, sesion, nombre, op = {}) {
     ts: new Date().toISOString(),
     activos: cartera.map(a => ({ symbol: a.symbol, sector: a.sector, peso_pct: a.peso_pct,
       riesgo_pct: a.riesgo_pct, cambio_pct: a.cambio_pct, monto: a.monto })) } } : null;
-  if (rec) { _recordarPortfolio(msg, rec.portfolio_recomendado); sesion.carteraTs = Date.now(); }
+  // 26-nov-2026: hasta 3 por usuario. Un ajuste («pasala a conservador») pisa el
+  // activo; una cartera nueva ocupa un lugar libre o, con 3, pregunta cuál reemplazar.
+  let guardada = false;
+  if (rec) {
+    if (op.ajuste) { _recordarPortfolio(msg, rec.portfolio_recomendado); guardada = true; }
+    else guardada = _guardarNuevoPortfolio(msg, sesion, rec.portfolio_recomendado);
+    if (guardada) sesion.carteraTs = Date.now();
+  }
   sesion.chatOferta = null;
   sesion.chatUltima = "cartera";
   sesion.chatPrevio = { intencion: "mi_portfolio", tickers: [], grupo: null };
@@ -3729,6 +3799,15 @@ async function _chatPublicarCartera(texto, msg, sesion, nombre, op = {}) {
   if (rec && !op.ajuste) {
     if (op.config) _guardarConfig(msg, sesion, op.config);
     if (!_configDelUsuario(msg, sesion)) { final = `${resp} ${preguntarPlazo({ semilla: texto })}`; sesion.paso = "esperando_plazo"; }
+  }
+  if (rec && !guardada) {
+    sesion.portPendiente = { rec: rec.portfolio_recomendado, texto: final, paso: sesion.paso || null };
+    sesion.paso = "reemplazar_portafolio";
+    const pide = `Armé la cartera nueva, pero antes de guardarla: ${portsTextoPedirReemplazo(_entradaPort(msg))}`;
+    await _publicarRespuesta(pide, msg);
+    _chatStats.directas++;
+    log(`👤 Respuesta [cartera nueva · 3 llenos, pide reemplazo] publicada`);
+    return;
   }
   await _publicarRespuesta(final, msg, rec);
   _chatStats.directas++;
@@ -3802,8 +3881,8 @@ async function _chatPublicarCarteraManual(texto, msg, sesion, arm, historial) {
     confianza_pct: null, ts: ahoraIso, modo: "manual",
     activos: arm.activos.map(a => ({ symbol: a.symbol, sector: panelM?.inst?.[a.symbol]?.sector || null,
       peso_pct: a.peso_pct, riesgo_pct: null, cambio_pct: hoyM[a.symbol]?.cambio ?? null, monto: null })) };
-  _recordarPortfolio(msg, recM);
-  sesion.carteraTs = Date.now();
+  const guardadaM = _guardarNuevoPortfolio(msg, sesion, recM);
+  if (guardadaM) sesion.carteraTs = Date.now();
   if (arm.config) _guardarConfig(msg, sesion, arm.config);
   const port = normalizarPortfolio(recM);
   const evM = evaluarPortfolio(port, panelM);
@@ -3812,6 +3891,14 @@ async function _chatPublicarCarteraManual(texto, msg, sesion, arm, historial) {
   if (!_configDelUsuario(msg, sesion)) { resp += ` ${preguntarPlazo({ semilla: texto })}`; sesion.paso = "esperando_plazo"; }
   sesion.chatOferta = null; sesion.chatUltima = "cartera";
   sesion.chatPrevio = { intencion: "mi_portfolio", tickers: [], grupo: null };
+  if (!guardadaM) {
+    sesion.portPendiente = { rec: recM, texto: resp.replace(/^Listo, guardé tu portafolio[^.]*\.\s*/, ""), paso: sesion.paso || null };
+    sesion.paso = "reemplazar_portafolio";
+    await _publicarRespuesta(`Antes de guardar tu portafolio nuevo: ${portsTextoPedirReemplazo(_entradaPort(msg))}`, msg);
+    _chatStats.directas++;
+    log(`👤 Respuesta [cartera manual · 3 llenos, pide reemplazo] publicada`);
+    return;
+  }
   await _publicarRespuesta(resp, msg, { portfolio_recomendado: recM });
   _chatStats.directas++;
   log(`👤 Respuesta [cartera manual · ${tks.join(",")}] publicada (${resp.length} chars)`);
@@ -3821,8 +3908,65 @@ async function _chatPublicarCarteraManual(texto, msg, sesion, arm, historial) {
  * Contesta un mensaje del chat con el router. Devuelve true si publicó la
  * respuesta; false para que siga el camino de antes (flujo de portfolio).
  */
+/**
+ * Hasta 3 portafolios (26-nov-2026): la elección de cuál reemplazar cuando ya hay
+ * 3, y los comandos «mis portafolios», «usá el portafolio 2», «borrá el portafolio 3».
+ * Devuelve true si contestó.
+ */
+async function _chatPortafolios(texto, msg, sesion) {
+  const uid = _uidPort(msg);
+  if (!uid) return false;
+  const publicar = async (resp, extra = null, etiqueta = "") => {
+    sesion.chatTurnos = (sesion.chatTurnos || 0) + 1;
+    sesion.chatOferta = null; sesion.chatUltima = "mi_portfolio";
+    sesion.chatPrevio = { intencion: "mi_portfolio", tickers: [], grupo: null };
+    await _publicarRespuesta(resp, msg, extra);
+    _chatStats.directas++;
+    log(`👤 Respuesta [portafolios·${etiqueta}] publicada (${resp.length} chars)`);
+    return true;
+  };
+  if (sesion.paso === "reemplazar_portafolio" && sesion.portPendiente) {
+    const e = _entradaPort(msg);
+    const r = portsElegirReemplazo(texto);
+    if (r === "cancelar") {
+      sesion.paso = null; sesion.portPendiente = null;
+      return publicar(`Listo, no guardé la cartera nueva. Siguen tus ${e?.ports?.length || 0} portafolios como estaban.`, null, "cancelar");
+    }
+    if (Number.isInteger(r) && e && r <= e.ports.length) {
+      const pend = sesion.portPendiente;
+      sesion.portPendiente = null; sesion.paso = pend.paso || null;
+      portsReemplazar(e, r, portsSlot(pend.rec, normalizarPortfolio));
+      _tocarEntrada(uid, e);
+      sesion.carteraTs = Date.now();
+      return publicar(`Listo, la guardé en el lugar ${r}. ${pend.texto}`, { portfolio_recomendado: pend.rec }, `reemplazo ${r}`);
+    }
+    if (e && (portsHablaDeCarteras(texto) || String(texto).trim().split(/\s+/).length <= 3))
+      return publicar(portsTextoPedirReemplazo(e), null, "repregunta");
+    sesion.paso = null; sesion.portPendiente = null;   // cambió de tema: se descarta y sigue el flujo
+    return false;
+  }
+  const c = portsComando(texto);
+  if (!c) return false;
+  const e = _entradaPort(msg);
+  if (c.accion === "listar") return publicar(portsTextoLista(e), null, "listar");
+  if (!e || !c.n || c.n > e.ports.length) return publicar(portsTextoNoExiste(e, c.n), null, "no existe");
+  if (c.accion === "activar") {
+    portsActivar(e, c.n);
+    const p = portsActivo(e);
+    if (p?.perfil) sesion.perfil = p.perfil;
+    sesion.monto = p?.monto || null; sesion.capital = null;
+    _tocarEntrada(uid, e);
+    return publicar(portsTextoActivado(e), null, `activar ${c.n}`);
+  }
+  portsBorrar(e, c.n);
+  if (!e.ports.length) _portUsuario.delete(uid);
+  _guardarPortUsuario();
+  return publicar(portsTextoBorrado(e, c.n), null, `borrar ${c.n}`);
+}
+
 async function _chatConRouter(texto, msg, sesion, historial, nombreUsuario) {
   _hidratarSesion(sesion, msg);
+  if (await _chatPortafolios(texto, msg, sesion)) return true;
   // Cualquier mensaje del chat despierta a Ollama (a lo sumo uno cada 4 min), así
   // la charla que venga después no paga la carga del modelo en frío.
   if (CHAT_CHARLA && CHARLA_PRECALENTAR && LLM_USA_LOCAL && typeof LLM.precalentar === "function") {
@@ -3918,12 +4062,23 @@ async function _chatConRouter(texto, msg, sesion, historial, nombreUsuario) {
     // «Borrá mi cartera»: se olvida (sesión, memoria y disco) en vez de evaluarla
     // o armar otra con el perfil guardado (6-nov-2026).
     if (ef.subtipo === "borrar") {
-      const tenia = !!(msg?.user_id && _portUsuario.has(msg.user_id)) || !!sesion.perfil;
-      if (msg?.user_id && _portUsuario.delete(msg.user_id)) _guardarPortUsuario();
-      sesion.perfil = null; sesion.capital = null; sesion.monto = null; sesion.carteraTs = null; sesion.paso = null;
-      const resp = tenia
-        ? "Listo, me olvidé de tu cartera y de tu perfil. Si la seguís viendo en el panel Portfolio, tocá «Quitar». Cuando quieras otra, pedime «armame un portafolio»."
-        : "No tengo ninguna cartera tuya guardada, así que no hay nada que borrar. Si la ves en el panel Portfolio, tocá «Quitar» ahí.";
+      // 26-nov-2026: con hasta 3, «borrá mi cartera» borra la ACTIVA, no todas.
+      const ePort = _entradaPort(msg);
+      let resp;
+      if (ePort?.ports?.length) {
+        const nB = ePort.activo + 1;
+        portsBorrar(ePort, nB);
+        if (!ePort.ports.length) _portUsuario.delete(_uidPort(msg));
+        _guardarPortUsuario();
+        resp = portsTextoBorrado(ePort, nB);
+        if (!ePort.ports.length) { sesion.perfil = null; sesion.capital = null; sesion.monto = null; }
+      } else {
+        resp = sesion.perfil
+          ? "Listo, me olvidé de tu perfil. No tenías ninguna cartera guardada."
+          : "No tengo ninguna cartera tuya guardada, así que no hay nada que borrar.";
+        sesion.perfil = null; sesion.capital = null; sesion.monto = null;
+      }
+      sesion.carteraTs = null; sesion.paso = null;
       sesion.chatTurnos = (sesion.chatTurnos || 0) + 1;
       sesion.chatOferta = null; sesion.chatUltima = "mi_portfolio"; sesion.chatPrevio = null;
       await _publicarRespuesta(resp, msg);
@@ -4303,7 +4458,7 @@ async function procesarInputHumano(msg) {
         })),
       } : null;
 
-      if (portfolioRecomendado) _recordarPortfolio(msg, portfolioRecomendado);
+      if (portfolioRecomendado && !_guardarNuevoPortfolio(msg, sesion, portfolioRecomendado)) _recordarPortfolio(msg, portfolioRecomendado);
       await _publicarRespuesta(resp2, msg, portfolioRecomendado ? { portfolio_recomendado: portfolioRecomendado } : null);
       return;
     }

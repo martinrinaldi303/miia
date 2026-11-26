@@ -1169,7 +1169,9 @@ async def ask_sync(request: Request):
     # y tiene un timeout DURO de 18 s en llm_local.js; sumando el armado de
     # contexto de class25B (~2-4 s) el piso real es ~20-22 s. Variable para poder
     # subirlo en el server SIN redeploy (ojo con el timeout del navegador).
-    TIMEOUT = float(os.environ.get("CHAT_TIMEOUT_S", "25"))
+    # 23 y no 25 (26-nov-2026): el navegador corta a los 25 s, y con el mismo
+    # número los dos vencían juntos y el aviso del Python no llegaba nunca.
+    TIMEOUT = float(os.environ.get("CHAT_TIMEOUT_S", "23"))
 
     # ── ¿Pregunta por un activo puntual? (ej: "acciones de YPF") ──
     # Antes esto BLOQUEABA hasta 5,5 s (cotización 3 s + portfolio 2,5 s) ANTES
@@ -1231,6 +1233,8 @@ async def ask_sync(request: Request):
             "portfolio_usuario": port_usuario,
             "metricas_context":  _metricas_para_chat(),   # tasa de acierto HONESTA (panel), o None
             "activo_context":    activo_ctx,   # análisis on-demand del activo pedido
+            # 26-nov-2026: con qué clave guarda class25B los portafolios (la cuenta, o el navegador).
+            "clave_portafolio":  _clave_portafolio(request, user_id),
             "ts": datetime.utcnow().isoformat(),
         }, ensure_ascii=False))
         ws_manager.registrar_consulta()
@@ -1256,6 +1260,12 @@ async def ask_sync(request: Request):
             except Exception:
                 continue
 
+            # 26-nov-2026: si class25B devuelve el id de la consulta, se empareja
+            # por él. La sesión sola no alcanza: dos mensajes seguidos de la misma
+            # sesión se llevaban la respuesta del otro y uno quedaba sin contestar.
+            _qid = str(data.get("query_id") or "")
+            if _qid and _qid != msg_id:
+                continue
             clase = clasificar_salida(data, user_id=user_id, sesion=sesion)
             if clase != "mia":
                 # "ignorar" = decisión de mercado/heartbeat (lo difunde el
@@ -1287,6 +1297,7 @@ async def ask_sync(request: Request):
                 "portfolio_recomendado": data.get("portfolio_recomendado")
                                          or portfolio_rec_activo,
                 "activo": activo_ctx,
+                "mis_portafolios": data.get("mis_portafolios"),
             })
 
     except Exception as e:
@@ -1666,6 +1677,44 @@ async def _calcular_interes_portfolio(portfolio_id: str, activos: list):
         log.warning(f"_calcular_interes_portfolio: {e}")
         return None
 
+# ── Hasta 3 portafolios por usuario (26-nov-2026) ─────────────────────────
+# Los guarda class25B en state/class25b_portfolios_usuario.json, con la CUENTA
+# como clave. La clave se arma acá, igual para el chat (/api/ask) y para el panel
+# (/api/portfolio): si entró con Google, el user_id del JWT; si no, el id del
+# navegador, que sólo se acepta con el formato que genera la web («u_…»).
+_PORTS_FILE = ROOT_DIR / "operador" / "aprendizaje" / "state" / "class25b_portfolios_usuario.json"
+_ports_cache = {"mtime": None, "filas": {}}
+
+
+def _clave_portafolio(request: Request, uid_web: str = "") -> str:
+    user = get_current_user(request)
+    if user and user.get("user_id"):
+        return ("cuenta:" + str(user["user_id"]))[:80]
+    uid = str(uid_web or "")
+    return uid[:80] if re.fullmatch(r"u_[a-z0-9]{4,40}", uid) else ""
+
+
+def _mis_portafolios(clave: str):
+    """El resumen que class25B dejó para esta clave, o una lista vacía."""
+    vacio = {"activo": None, "lista": [], "max": 3}
+    if not clave:
+        return vacio
+    try:
+        mt = _PORTS_FILE.stat().st_mtime
+        if _ports_cache["mtime"] != mt:
+            j = json.loads(_PORTS_FILE.read_text(encoding="utf-8"))
+            _ports_cache["filas"] = {f.get("uid"): f.get("resumen") for f in (j.get("filas") or [])
+                                     if isinstance(f, dict) and f.get("uid")}
+            _ports_cache["mtime"] = mt
+        r = _ports_cache["filas"].get(clave)
+        return r if isinstance(r, dict) else vacio
+    except FileNotFoundError:
+        return vacio
+    except Exception as e:
+        log.warning(f"mis_portafolios: no se pudo leer ({type(e).__name__})")
+        return vacio
+
+
 @app.get("/api/portfolio")
 async def get_portfolio(request: Request):
     """
@@ -1688,8 +1737,9 @@ async def get_portfolio(request: Request):
         LIMIT 1
     """, (user_id,)) or []
 
+    mis_ports = _mis_portafolios(_clave_portafolio(request, request.query_params.get("uid", "")))
     if not port_rows:
-        return JSONResponse({"portfolio": None, "activos": [],
+        return JSONResponse({"portfolio": None, "activos": [], "mis_portafolios": mis_ports,
                              "msg": "Sin portfolio disponible aún"})
 
     port = dict(port_rows[0])
@@ -1785,6 +1835,7 @@ async def get_portfolio(request: Request):
         "volatilidad_2d":   volatilidad_2d,
         "historial_reciente": historial_port,
         "ts":               port.get("ts"),
+        "mis_portafolios":  mis_ports,
     })
 
 @app.get("/api/stats")

@@ -192,7 +192,7 @@ chequear("la web sanea lo que lee antes de pintarlo", /function _sanearPortfolio
 chequear("la memoria por usuario se guarda en state/ y se relee al arrancar",
   /class25b_portfolios_usuario\.json/.test(c25) && /^_cargarPortUsuario\(\);$/m.test(c25) && /_guardarPortUsuario\(\)/.test(c25));
 chequear("lo leído del disco se valida igual que lo de la web",
-  /function _cargarPortUsuario[\s\S]{0,700}normalizarPortfolio\(f\.port\)/.test(c25));
+  /function _cargarPortUsuario[\s\S]{0,900}portsNormalizarEntrada\(f, normalizarPortfolio/.test(c25));
 chequear("al apagar se escribe lo pendiente", /async function shutdown\(\)[\s\S]{0,300}_escribirPortUsuario\(\)/.test(c25));
 chequear("sin cartera: se contesta el régimen y se pide el perfil (sin «Dale.»)",
   /contexto: "sin_portfolio", regimen: reg/.test(c25));

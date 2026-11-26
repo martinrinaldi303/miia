@@ -243,8 +243,8 @@ console.log("\n8 · ¿Lo armo yo o lo armás vos? Y el plazo que define cuándo 
 
   const c25 = leer("scripts/class25B.js");
   chequear("class25B corre el armado ANTES del flujo de perfil", c25.indexOf("decidirArmado(sesion, texto, it") < c25.indexOf("decidirCartera(sesion, texto, it)"));
-  chequear("class25B guarda la config por usuario en state/ (sobrevive a reinicios)", c25.includes("config: e.config || null") && c25.includes("config: normalizarConfig(f.config)"));
-  chequear("la copia de la web (sin config) no borra la config guardada", c25.includes("config: prev?.config || null"));
+  chequear("class25B guarda la config por usuario en state/ (sobrevive a reinicios)", c25.includes("config: e.config || null") && c25.includes("e.config = normalizarConfig(f.config)"));
+  chequear("la copia de la web (sin config) no borra la config guardada", c25.includes("portsActualizarActivo(prev, sl)"));
 
   // 16-nov-2026 (probado en vivo en miiaia.com): con el menú A/B abierto,
   // «¿Debería vender todo?» y «¿Quién gana el Mundial?» recibían el menú otra vez,

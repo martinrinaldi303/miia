@@ -180,6 +180,10 @@ This README intentionally does not provide production deployment commands or rea
 - Explicit dependency and build instructions.
 - Automated tests that do not call production services or consume production API quotas.
 
+### Simulations (GitHub Actions)
+
+The `Simulaciones` workflow (`.github/workflows/simulaciones.yml`) runs the cold tests in `docs/simulaciones/` on every push and pull request, and on demand from the **Actions** tab ("Run workflow"). They execute the production code (Node, Python, C++ with `-DMIIA_SIN_MAIN`, and .NET) against versioned sample data. They need no Redis, MySQL or API keys.
+
 ## Contributing
 
 Contributions are welcome through issues and pull requests. Before submitting:
@@ -367,6 +371,10 @@ Este README no incluye comandos de despliegue en producción ni configuraciones 
 - Una base de datos y un broker de mensajería locales para desarrollo.
 - Instrucciones explícitas de dependencias y compilación.
 - Pruebas automatizadas que no llamen a servicios de producción ni consuman cuotas de APIs productivas.
+
+### Simulaciones (GitHub Actions)
+
+El flujo `Simulaciones` (`.github/workflows/simulaciones.yml`) corre las pruebas en frío de `docs/simulaciones/` en cada push y pull request, y a mano desde la pestaña **Actions** ("Run workflow"). Ejecutan el código de producción (Node, Python, C++ con `-DMIIA_SIN_MAIN` y .NET) contra datos de muestra versionados. No necesitan Redis, MySQL ni claves de APIs.
 
 ## Contribuciones
 
