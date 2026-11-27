@@ -269,7 +269,7 @@ seccion("7 · Guardas de regresión sobre class25B");
     "decisión de Martín el 11-oct-2026: el chat no gasta cuota de Gemini");
   chequear("el CHAT ya no lo cierra `_geminiReady` solo",
     /const hayLocal  = LLM_USA_LOCAL  && !LLM\.cortado\(\)( && !opts\.soloGemini)?;/.test(c)
-    && c.includes("if (!hayLocal && !hayGemini) return null;"),
+    && c.includes("if (!hayLocal && !hayGemini && !hayDeepseek) return null;"),
     "con MIIA_LLM=local no hay modelo de Gemini y hay que contestar igual");
   chequear("el CHAT intenta local y usa el historial", c.includes("await LLM.conversar({ mensajes"));
   chequear("la REDACCIÓN intenta local", c.includes("await LLM.generar({ prompt, maxTokens: LLM_LOCAL_MAX_TOKENS"));
@@ -458,7 +458,7 @@ seccion("7c · La reescritura con Ollama: sólo respuestas cortas, y que entren 
     `da ${(ms / 1000).toFixed(1)} s — bajá CLASS25B_REESCRIBIR_LOCAL_CHARS o _TOKENS`);
   chequear("la reescritura local va SIN historial", /localTurnos:\s*0/.test(c));
   chequear("una respuesta larga sin Gemini sale YA (no espera a Ollama)",
-    /if \(!corta && !\(CHARLA_GEMINI_PRIMERO && _geminiReady\(true\)\)\) return null;/.test(c));
+    /if \(!corta && !\(CHARLA_GEMINI_PRIMERO && \(_geminiReady\(true\) \|\| DS\.disponible\(\)\)\)\) return null;/.test(c));
   chequear("y con Gemini, la larga no cae a Ollama (soloGemini)", /soloGemini:\s*!corta/.test(c));
 }
 
@@ -563,13 +563,17 @@ seccion("10 · La cadena de motores de la charla, corrida (13-nov)");
   const i0 = fuente.indexOf("async function _geminiMultiTurno(");
   const cuerpo = fuente.slice(i0, fuente.indexOf("\n}\n", i0) + 3);
   const crypto = await import("node:crypto");
-  function armar({ gemini, local }) {
-    const st = { cache: new Map(), llamadasG: 0, llamadasL: 0, cfgs: [], errores: [], sinThinking: false, descartadas: 0 };
+  function armar({ gemini, local, deepseek = null }) {
+    const st = { cache: new Map(), llamadasG: 0, llamadasL: 0, llamadasD: 0, abortosD: 0, cfgs: [], errores: [], sinThinking: false, descartadas: 0 };
     const env = {
-      LLM_USA_LOCAL: true, LLM_USA_GEMINI: false, LLM_LOCAL_TURNOS: 2, LLM_LOCAL_CHARS_TURNO: 250,
+      LLM_USA_LOCAL: true, LLM_USA_GEMINI: false, LLM_LOCAL_TURNOS: 2, LLM_LOCAL_CHARS_TURNO: 250, LLM_CHARLA_TURNOS: 1, LLM_CHARLA_CHARS_TURNO: 160,
       LLM_CHARLA_MAX_TOKENS: 56, LLM_LOCAL_MAX_TOKENS: 56, LLM_CHARLA_TIMEOUT_MS: 12000, LLM_CHARLA_TIMEOUT_SERIE_MS: 12000, CHARLA_EN_CARRERA: true, GEMINI_CHARLA_TIMEOUT_MS: 200,
       LLM_APRENDER_LOCAL: false, crypto,
       LLM: { cortado: () => false, conversar: async o => { st.llamadasL++; return local(o); } },
+      DS: { disponible: () => !!deepseek,
+            conversar: o => { st.llamadasD++;
+              if (o.signal) o.signal.addEventListener("abort", () => st.abortosD++, { once: true });
+              return deepseek(o); } },
       geminiModel: { generateContent: req => { st.llamadasG++; st.cfgs.push(req.generationConfig); return gemini(req); } },
       _geminiReady: () => true, log: () => {},
       _geminiCacheGet: k => st.cache.get(k) ?? null, _geminiCacheSet: (k, v) => st.cache.set(k, v),
@@ -634,6 +638,33 @@ seccion("10 · La cadena de motores de la charla, corrida (13-nov)");
     chequear("corta: Ollama recibe SÓLO el sistema y la pregunta (slice(-0) no cuela el historial)",
       r?.motor === "local" && visto?.mensajes?.length === 2 && visto.mensajes[1].texto === "hola", JSON.stringify(visto?.mensajes?.map(m => m.rol)));
     chequear("corta: con el tope de salida propio", visto?.maxTokens === 60); }
+  // DeepSeek, tercer motor (26-nov-2026).
+  { const g503 = async () => { const e = new Error("[503] alta demanda"); e.status = 503; throw e; };
+    const dsOk = t => async () => ({ texto: t, ms: 5, modelo: "deepseek-chat" });
+    { const { st, correr } = armar({ gemini: g503, local: localOk("La del local."), deepseek: dsOk("La de DeepSeek.") });
+      const r = await correr("hola", ctx, [], true, opts);
+      chequear("DeepSeek: Gemini 503 → contesta DeepSeek y se cancela Ollama", r?.motor === "deepseek" && st.llamadasD === 1); }
+    { const { st, correr } = armar({ gemini: async () => resp("Gemini contesta."),
+                                   local: localOk("no debería"),
+                                   deepseek: () => new Promise(ok => setTimeout(() => ok({ texto: "DS tarde", ms: 300 }), 300)) });
+      const r = await correr("hola", { ...ctx, _hechos: "h2" }, [], true, opts);
+      chequear("DeepSeek: si Gemini gana, DeepSeek se cancela", r?.motor === "gemini" && st.abortosD === 1); }
+    { const { st, correr } = armar({ gemini: g503, local: localOk("La del local."), deepseek: dsOk("DeepSeek INVALIDA.") });
+      const r = await correr("hola", { ...ctx, _hechos: "h3" }, [], true, opts);
+      chequear("DeepSeek: los dos de la nube fallan → Ollama", r?.motor === "local"); }
+    { const { st, correr } = armar({ gemini: g503, local: localOk("no debería"), deepseek: dsOk("DeepSeek larga.") });
+      const r = await correr("hola", { _modo: "reescribir", _referencia: "ref9" }, [], true, { ...opts, soloGemini: true, sinCarrera: true });
+      chequear("DeepSeek: reescritura larga sin Gemini → DeepSeek, sin Ollama", r?.motor === "deepseek" && st.llamadasL === 0); }
+    { let visto = null;
+      const { correr } = armar({ gemini: g503, local: async o => { visto = o; return { texto: "Local corta.", modelo: "f", ms: 1, tps: 1 }; } });
+      const hist = [{ rol: "user", txt: "x".repeat(400) }, { rol: "assistant", txt: "y".repeat(400) }];
+      await correr("hola", { ...ctx, _hechos: "h4" }, hist, true, opts);
+      chequear("charla en Ollama: 1 turno de historial de 160 caracteres como mucho",
+        visto?.mensajes?.length === 3 && visto.mensajes[1].texto.length === 160, JSON.stringify(visto?.mensajes?.map(m => m.texto.length))); }
+    { const { st, correr } = armar({ gemini: async () => resp(""), local: localOk("La del local."), deepseek: dsOk("no debería") });
+      await correr("hola", {}, [], true, {});
+      chequear("DeepSeek: el camino de DATOS no lo usa", st.llamadasD === 0); }
+  }
   // La CARRERA (8-nov), recuperada el 13-nov y combinada con la validación de hoy.
   { let tL0 = null, tG = null;
     const { st, correr } = armar({

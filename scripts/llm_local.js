@@ -30,6 +30,21 @@
  * redactor interno (ver MIIA_LLM allá). Acá sólo se habla con Ollama.
  */
 import http from "node:http";
+import fs   from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+// 26-nov-2026: el MODELO se lee también del .env, para cambiarlo reiniciando sólo
+// class25B. El orquestador le pasa a cada hijo un snapshot del entorno de cuando
+// arrancó, así que poner MIIA_LLM_MODELO en el .env no llegaba sin reiniciar el
+// orquestador (que corta la medición). Lo de la línea de comando sigue mandando.
+try {
+  const _env = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "operador", "aprendizaje", "config", ".env");
+  for (const _l of fs.readFileSync(_env, "utf8").split(/\r?\n/)) {
+    const _m = _l.match(/^\s*MIIA_LLM_MODELO\s*=\s*(.*)$/);
+    if (_m && _m[1].split(" #")[0].trim()) process.env.MIIA_LLM_MODELO = _m[1].split(" #")[0].trim().replace(/^["']|["']$/g, "");
+  }
+} catch { /* sin .env: queda lo del entorno o el default */ }
 
 // ── Configuración ──────────────────────────────────────────────────────────
 // 127.0.0.1 a propósito, y no `localhost`: en el server `localhost` resuelve
@@ -37,7 +52,7 @@ import http from "node:http";
 // — es la misma trampa del HSTS en [::1] del 26-sep.
 const URL_BASE = process.env.OLLAMA_URL || "http://127.0.0.1:11434";
 
-/** El modelo. Ver «Por qué gemma2:2b» en las notas internas antes de cambiarlo. */
+/** El modelo. Ver «Por qué gemma2:2b» en CLAUDE.md antes de cambiarlo. */
 export const MODELO = process.env.MIIA_LLM_MODELO || "gemma2:2b";
 
 /** Timeout duro por pedido. Generoso: la primera llamada incluye cargar el

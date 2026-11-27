@@ -132,7 +132,7 @@ const P = {
   // misma?», con las faltas reales («consiente», «conciente»), «¿tenés
   // sentimientos?», «¿estás viva?»: preguntas sobre MIIA que caían en la charla.
   identidad: /((opin\w*|pens\w*|parece|crees|decis) (de|sobre) (vos|ti|vos mism[oa]|ti mism[oa]|tu creador|tu creadora|martin|miia)\b|quien(es)? (te|lo|la) (creo|hizo|desarrollo|programo|entreno|fabrico|diseno|armo)|tu creador|quien es tu (creador|dueno|desarrollador)|(sos|eres) (de )?(google|openai|chat ?gpt|gemini|meta|microsoft)|(sos|eres) una? (ia|bot|robot|persona|humano|maquina|programa)|que modelo|que (ia|inteligencia artificial) (sos|eres|usas)|como (funcionas|trabajas|pensas|razonas|podes hablar|puedes hablar|hablas|sabes hablar|aprendes|decidis)|^(que|quien) (sos|eres)\b|de donde (sacas|salen|obtenes) (los datos|la info|los numeros)|que significa miia|que es miia|(sos|eres|estas) (auto)?(consciente|consiente|conciente)|(conscien|consien|concien)\w* de (ti|vos|si) mism[oa]|(tenes|tienes) (conciencia|consciencia|conciensia|sentimientos|emociones|alma|vida propia)|(sentis|sientes) (algo|emociones|cosas)|como te (percibis|percibes|sentis|sientes)|(sos|eres|estas) viva\b|(sos|eres) real\b|pensas por (vos|ti) mism[oa])/,
-  capacidades: /(que (podes|puedes|sabes|sabe) (hacer|responder|contestar|decir|analizar|mostrar)|que te (puedo|podria) (preguntar|consultar)|para que (servis|sirves|sirve)|que (cosas|temas) (sabes|manejas|podes)|^ayuda$|como te (uso|usamos|consulto)|que haces\b|en que me (ayudas|podes ayudar))/,
+  capacidades: /(que (podes|puedes|sabes|sabe) (hacer|hace|haces|responder|contestar|decir|analizar|mostrar)|que te (puedo|podria) (preguntar|consultar)|para que (servis|sirves|sirve)|que (cosas|temas) (sabes|manejas|podes)|^ayuda$|como te (uso|usamos|consulto)|que haces\b|en que me (ayudas|podes ayudar))/,
   mercado_abierto: /((mercado|bolsa|nyse|wall street|rueda)\b.*\b(abiert|cerrad|abre|cierra|opera|funciona hoy))|\b(abre|cierra|abrio|cerro) (el|la) (mercado|bolsa|nyse)|hay rueda|hay mercado|hoy (hay|opera|abre) (el )?(mercado|bolsa|rueda)|es feriado|a que hora (abre|cierra)|^esta abierto|^(abrio|cerro)\b/,
   acierto:  /(tasa de acierto|aciert|asiert|precision|accuracy|efectividad|que tan (bueno|buena|preciso|precisa|confiable|bien) (sos|eres|es|funciona)|cuanto (acertas|le pegas|le embocas)|le pegas|track record|ventaja (real|estadistica)|\bedge\b|rank ?ic|sos (confiable|bueno)|funcionan tus (senales|predicciones)|como (se comporta|rinde|rindio|funciona|anda|va|le (fue|va)) (el |lo )?(tuyo|tu (sistema|backtesting|modelo|estrategia|senal|prediccion|motor))|tu (backtesting|rendimiento|desempeno|performance|track record)|como (te (fue|va)|venis|rendis|rindio el sistema)|(que|como) (resultados|rendimiento|desempeno) (da|tiene|tuvo|tenes|tuviste)|si (te equivocas|te equivoca|te equivocaste|acertas|aciertas|le pegas|fallas|fallaste)\b|\b(te equivocas|te equivocaste|fallas|le erras) (mucho|seguido|a menudo|poco|a veces|siempre|bastante|nunca)\b|cuanto (te equivocas|fallas|le erras)|(cada cuanto|cuantas veces|con que frecuencia) (te equivocas|fallas|le erras|acertas)|^(el tuyo|lo tuyo)$)/,
   portfolio: /(portafolio|portfolio|porfolio|portafolo|cartera|armame|armar (una|un|mi) |quiero invertir|dame (unos )?activos|como invierto|como deberia invertir|diversific)/,
@@ -200,6 +200,14 @@ const TEMAS = [
 
 // Temas de charla que llevan un país o un sector como adjetivo («el fútbol
 // argentino», «la música brasilera», «el vino chileno»): no son el mercado.
+// 26-nov-2026 (pedido de Martín): un PAÍS no es automáticamente su ETF. «¿Qué
+// opinás de Argentina?» puede ser economía, política o cultura: si no hay un
+// ticker escrito, ni una palabra o un verbo de mercado, ni una charla de mercado
+// en curso, la pregunta va al motor (charla) con el ETF sólo como dato.
+const PAISES = new Set(["Estados Unidos", "Argentina", "Brasil", "México", "Latinoamérica", "China",
+  "Japón", "Alemania", "el Reino Unido", "Suiza", "Corea del Sur", "Taiwán", "Hong Kong",
+  "Australia", "India", "Canadá", "Europa"]);
+const MERCADO_VERBO = /\b(conviene|compr\w*|vend\w*|sub(e|io|iendo)|baj(a|o|ando)|rinde|rindio|cotiz\w*|gan(a|o|ando)|perd\w*|rally|desplom\w*|ranking|puesto|senal\w*|riesgo|noticias?|novedades|fuerte|debil|mejor|peor|lider\w*)\b/;
 const FUERA_DEL_MERCADO = /\b(futbol\w*|mundial\w*|seleccion|messi|maradona|scaloni|copa|goles?|partidos?|equipos?|hinchas?|musica|cancion\w*|bandas?|rock|cumbia|tango|peliculas?|series|libros?|comidas?|asado|vinos?|empanadas?|mate|cocina|clima|turismo|viaj\w*|playas?|cultura|historia|idioma|gente|ciudad\w*|paisaje\w*|arte|deportes?|tenis|basquet|rugby|formula 1|literatura|escritor\w*|actor\w*|actriz|jugador\w*|campeon\w*|autos?|celular\w*|videojuego\w*|cantante\w*|artista\w*|recetas?|mascotas?|perros?|gatos?|pelis?)\b/;
 
 // Intenciones con datos que "contame más" puede ampliar.
@@ -433,6 +441,19 @@ export function clasificar(texto, op = {}) {
     ...base, intencion, tickers: ent.tickers.slice(), grupo: ent.grupos[0] || null,
     grupos: ent.grupos, fuera: ent.fuera, tema: ent.tema, saludo, ...extra,
   });
+  // Un país sin contexto de mercado va a la charla (26-nov-2026): ver PAISES.
+  const _charlaMercado = previo && ((previo.tickers || []).length || previo.grupo);
+  if (!ent.tickers.length && ent.grupos.length && ent.grupos.every(g => PAISES.has(g.etiqueta))
+      && !P.mercadoPalabra.test(t) && !MERCADO_VERBO.test(t) && !_charlaMercado) {
+    return res("libre", { pais: ent.grupos.map(g => ({ etiqueta: g.etiqueta, tickers: g.tickers })),
+                          grupos: [], grupo: null });
+  }
+  // «¿Cómo funciona?» suelto (26-nov-2026): sigue el hilo. Si se venía hablando de
+  // un concepto, es ese concepto; si no, es cómo funciona MIIA.
+  if (!ent.tickers.length && /^(y )?(como|cmo) (funciona|anda|trabaja)( (esto|eso|miia|el sistema|la app|la pagina|la web))?$/.test(t)) {
+    if (previo?.intencion === "concepto" && previo.concepto) return res("concepto", { concepto: previo.concepto, heredado: true });
+    return res("identidad", { subtipo: "como_funciona" });
+  }
 
   // «Dame el detalle (en ese orden)» después del resumen de noticias: se amplían
   // las noticias, no es charla libre (5-nov-2026).
@@ -466,7 +487,9 @@ export function clasificar(texto, op = {}) {
              : /(cambi|ajust|rebalance|sac[oa]r?\b|agreg|lo mantengo|que hago)/.test(t) ? "ajustar" : null });
   }
   // Seguir hablando de SU portafolio: «¿y lo cambio?», «¿qué sacarías?».
-  if (previo?.intencion === "mi_portfolio" && palabras <= 8 && !ent.tickers.length && !ent.grupos.length
+  // 26-nov-2026: también justo después de ARMARLO («¿cuándo debería cambiarlo?»
+  // caía en la charla libre y, con el motor lento, en el respaldo).
+  if ((previo?.intencion === "mi_portfolio" || previo?.intencion === "portfolio") && palabras <= 8 && !ent.tickers.length && !ent.grupos.length
       && P.ajustarPort.test(t)) {
     return res("mi_portfolio", { subtipo: "ajustar", heredado: true });
   }

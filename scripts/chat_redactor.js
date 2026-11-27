@@ -900,10 +900,15 @@ No prometas ganancias ni digas qué comprar o vender, no inventes cifras del mer
 // La firma que pidió Martín: que recuerde que es una IA y que se puede equivocar
 // (y, cuando habla de sí misma, quién la creó). Se agrega sólo si el modelo no
 // lo dijo ya, y con varias formas para que no suene a sello.
-export function firmaCharla(texto, { semilla = "", identidad = false } = {}) {
+// 26-nov-2026 (pedido de Martín): el «soy una IA, me puedo equivocar» ya no va en
+// CADA respuesta: sólo cuando el tema es serio (plata, inversión, el mercado, un
+// portafolio). En la charla de café sobraba y sonaba a bot.
+export const TEMA_SERIO = /\b(invert\w*|inversion\w*|compr\w*|vend\w*|cartera|portafolio|portfolio|conviene|deberia|acciones?|etfs?|bolsa|mercados?|riesgo|plata|dinero|ahorr\w*|dolar\w*|crypto|cripto\w*|bitcoin|ganancia|perdida|rendimiento|prestamo|credito|deuda)\b/i;
+export function firmaCharla(texto, { semilla = "", identidad = false, serio = true } = {}) {
   let s = String(texto || "").trim();
   if (!s) return s;
   if (identidad && !/mart[ií]n/i.test(s)) s += " Me creó Martín Rinaldi.";
+  if (!serio) return s;
   if (/(equivoc|me puedo (errar|confundir)|puedo fallar|no soy infalible)/i.test(s)) return s;
   const formas = [
     "Ojo: es mi opinión de IA y me puedo equivocar.",

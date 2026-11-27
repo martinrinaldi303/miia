@@ -53,6 +53,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 // Motor de lenguaje LOCAL (Ollama). Modulo propio y sin dependencias para
 // poder probarlo sin levantar class25B. Ver scripts/llm_local.js.
 import * as LLM from "./llm_local.js";
+import * as DS from "./llm_deepseek.js";   // 26-nov-2026: tercer motor de la charla
 import { getStorageConfig, getLoggingConfig, getConfig } from "./class38.js";
 // FUENTE ÚNICA del universo (21-sep-2026). Ver scripts/universo.js.
 import { TICKERS, TICKERS_TEXTO, INSTRUMENTOS } from "./universo.js";
@@ -64,7 +65,7 @@ import { glosarioLocal } from "./glosario.js";
 // archivo y prueba que resuelvan en el server (deploy_arreglo_chat.sh, paso 3).
 import { clasificar as chatClasificar, detectarNombre as chatDetectarNombre } from "./chat_router.js";
 import { armarPanel, evidencia as chatEvidencia, validarRespuesta, estadoNYSE } from "./chat_evidencia.js";
-import { redactar as chatRedactar, redactarPortfolio, promptCharla, firmaCharla } from "./chat_redactor.js";
+import { redactar as chatRedactar, redactarPortfolio, promptCharla, firmaCharla, TEMA_SERIO } from "./chat_redactor.js";
 import { normalizarPortfolio, evaluarPortfolio, redactarMiPortfolio, veredictoPortfolio } from "./chat_portfolio.js";
 import { normalizarEntrada as portsNormalizarEntrada, slot as portsSlot, agregar as portsAgregar, reemplazar as portsReemplazar,
          actualizarActivo as portsActualizarActivo, activar as portsActivar, borrar as portsBorrar, activoDe as portsActivo,
@@ -773,8 +774,8 @@ No uses markdown. Sé claro y directo. Evitá el alarmismo innecesario.`;
 try {
   const _envPath = path.join(BASE_DIR, "config", ".env");
   for (const _l of fs.readFileSync(_envPath, "utf8").split(/\r?\n/)) {
-    const _m = _l.match(/^\s*(GEMINI_API_KEY|GEMINI_MODEL)\s*=\s*(.*)$/);
-    if (_m) process.env[_m[1]] = _m[2].trim().replace(/^["']|["']$/g, "");
+    const _m = _l.match(/^\s*(GEMINI_API_KEY|GEMINI_MODEL|CLASS25B_DEEPSEEK|DEEPSEEK_API_KEY|DEEPSEEK_MODEL|DEEPSEEK_URL|DEEPSEEK_TIMEOUT_MS|MIIA_LLM_TURNOS_CHARLA|MIIA_LLM_CHARS_TURNO_CHARLA|MIIA_LLM_MAX_TOKENS_CHARLA)\s*=\s*(.*)$/);
+    if (_m) process.env[_m[1]] = _m[2].split(" #")[0].trim().replace(/^["']|["']$/g, "");
   }
 } catch { /* en dev el .env puede no existir */ }
 
@@ -934,6 +935,11 @@ const LLM_LOCAL_TURNOS      = Number(process.env.MIIA_LLM_TURNOS || 2);
 // código, no la genera el modelo, así que no cuesta tokens.
 const LLM_CHARLA_MAX_TOKENS = Number(process.env.MIIA_LLM_MAX_TOKENS_CHARLA || LLM_LOCAL_MAX_TOKENS);
 const LLM_LOCAL_CHARS_TURNO = 250;
+// 26-nov-2026: en la charla Ollama recibía ~300 tokens (prompt + 2 turnos de 250
+// caracteres) y tardaba 8,6 s sólo en leerlos; con la generación (~7 tok/s) se
+// pasaba de los 20 s. Un turno de 160 caracteres deja el prompt en ~200 tokens.
+const LLM_CHARLA_TURNOS      = Number(process.env.MIIA_LLM_TURNOS_CHARLA ?? 1);
+const LLM_CHARLA_CHARS_TURNO = Number(process.env.MIIA_LLM_CHARS_TURNO_CHARLA || 160);
 // Presupuesto de tiempo de la charla: el frente corta a los 25 s (index.html) y el
 // Python espera 25 s (CHAT_TIMEOUT_S). Si Gemini da 503 (gratis sobrecargado, no
 // cuota) el SDK puede reintentar solo, así que Gemini lleva un tope DURO (9 s).
@@ -1004,6 +1010,10 @@ function _geminiReady(bypassGrace = false) {
 // contesta con el local igual; sólo faltaba que el llamador lo dejara entrar.
 function _hayMotorLenguaje(bypassGrace = false) {
   return (LLM_USA_LOCAL && !LLM.cortado()) || _geminiReady(bypassGrace);
+}
+// La charla (y la reescritura) además pueden ir por DeepSeek (26-nov-2026).
+function _hayMotorCharla(bypassGrace = false) {
+  return _hayMotorLenguaje(bypassGrace) || DS.disponible();
 }
 
 // ── Caché de respuestas Gemini ────────────────────────────────
@@ -3023,7 +3033,9 @@ async function _geminiMultiTurno(texto, ctx, historial = [], bypassGrace = false
   // En la charla libre (`opts.geminiPrimero`) Gemini entra aunque MIIA_LLM=local:
   // los datos siguen por el redactor determinístico; esto es sólo para opinar.
   const hayGemini = (opts.geminiPrimero ? true : LLM_USA_GEMINI) && _geminiReady(bypassGrace);
-  if (!hayLocal && !hayGemini) return null;
+  // DeepSeek (26-nov-2026) sólo en la charla y la reescritura (`opts.geminiPrimero`).
+  const hayDeepseek = !!opts.geminiPrimero && DS.disponible();
+  if (!hayLocal && !hayGemini && !hayDeepseek) return null;
 
   // Caché: si ya respondimos esta pregunta recientemente, reutilizar. Con hechos
   // en el prompt la clave los incluye: la misma pregunta con otros números del
@@ -3085,20 +3097,22 @@ async function _geminiMultiTurno(texto, ctx, historial = [], bypassGrace = false
       // `opts.localTurnos` / `opts.localMaxTokens` (13-nov-2026): la reescritura
       // corta va SIN historial (cada token leído cuesta ~25 ms) y con un poco más
       // de salida. Ojo: slice(-0) devuelve TODO el arreglo, de ahí el `> 0`.
-      const _turnosLocal = Number.isFinite(opts.localTurnos) ? opts.localTurnos : LLM_LOCAL_TURNOS;
+      const _turnosLocal = Number.isFinite(opts.localTurnos) ? opts.localTurnos
+                         : (charla ? LLM_CHARLA_TURNOS : LLM_LOCAL_TURNOS);
+      const _charsTurno = charla ? LLM_CHARLA_CHARS_TURNO : LLM_LOCAL_CHARS_TURNO;
       for (const h of (_turnosLocal > 0 ? (historial || []).slice(-_turnosLocal) : [])) {
         if (h && h.txt) mensajes.push({ rol: h.rol === "user" ? "user" : "assistant",
-                                        texto: String(h.txt).slice(0, LLM_LOCAL_CHARS_TURNO) });
+                                        texto: String(h.txt).slice(0, _charsTurno) });
       }
       if (mensajes[mensajes.length - 1].rol !== "user") mensajes.push({ rol: "user", texto });
 
       const r = await LLM.conversar({ mensajes, maxTokens: opts.localMaxTokens || (charla ? LLM_CHARLA_MAX_TOKENS : LLM_LOCAL_MAX_TOKENS),
                                       temperatura: charla ? 0.90 : 0.80,
                                       timeoutMs, signal });
-      const tarde = estado?.gano === "gemini";
+      const tarde = !!estado?.gano;   // ya contestó un motor de la nube
       _llmLocalUsos++;
       log(`✅ ${r.modelo} local (${mensajes.length} turnos, ${String(r.texto || "").length} chars, `
-        + `${r.ms} ms, ${r.tps} tok/s)${tarde ? " — llegó tarde, contestó Gemini" : ""}`);
+        + `${r.ms} ms, ${r.tps} tok/s)${tarde ? " — llegó tarde, contestó ${estado.gano}" : ""}`);
       // Tarde: ya contestó Gemini y nadie usa ésta. No se valida (no sumaría
       // «descartadas» falsas) ni se cachea.
       if (tarde) return { texto: r.texto, motor: "local" };
@@ -3194,8 +3208,56 @@ async function _geminiMultiTurno(texto, ctx, historial = [], bypassGrace = false
     }
   };
 
-  // Orden de motores: en charla, Gemini primero y Ollama de respaldo; en datos,
-  // local primero y Gemini de respaldo (lo de siempre).
+  // ── Motor DEEPSEEK (26-nov-2026) ──
+  // Formato OpenAI: system + los últimos turnos + la pregunta. Tope duro propio
+  // (DEEPSEEK_TIMEOUT_MS, 12 s) dentro de los 25 s del frente.
+  const correrDeepseek = async (signal = undefined) => {
+    try {
+      const mensajes = [{ rol: "system", texto: sysPrompt }];
+      for (const h of (historial || []).slice(-2)) {
+        if (h && h.txt) mensajes.push({ rol: h.rol === "user" ? "user" : "assistant", texto: String(h.txt).slice(0, 600) });
+      }
+      if (mensajes[mensajes.length - 1].rol !== "user") mensajes.push({ rol: "user", texto });
+      const r = await DS.conversar({ mensajes, maxTokens: 300, temperatura: charla ? 0.9 : 0.8, signal });
+      log(`✅ DeepSeek (${mensajes.length} turnos, ${String(r.texto || "").length} chars, ${r.ms} ms)`);
+      if (!_sirve(r.texto, "deepseek")) return null;
+      _geminiCacheSet(_claveCache, r.texto);
+      return { texto: r.texto, motor: "deepseek" };
+    } catch (e) {
+      if (e?.name !== "AbortError") log(`⚠️ motor deepseek falló: ${e.message}`, "warn");
+      return null;
+    }
+  };
+  // El primero que devuelva algo que sirva; null si ninguno.
+  const _primeroQueSirva = (promesas) => new Promise(res => {
+    let quedan = promesas.length;
+    if (!quedan) return res(null);
+    for (const p of promesas) p.then(r => { if (r) res(r); else if (--quedan === 0) res(null); },
+                                     () => { if (--quedan === 0) res(null); });
+  });
+
+  // Orden de motores: en charla, los de la nube (Gemini y DeepSeek, en paralelo)
+  // primero y Ollama de respaldo; en datos, local primero y Gemini de respaldo.
+  if (opts.geminiPrimero && hayDeepseek) {
+    // Gemini y DeepSeek arrancan JUNTOS (y Ollama también, si hay carrera):
+    // vale la primera respuesta de la nube que pase el validador.
+    const ctrlDs = new AbortController();
+    const ctrlLocal = new AbortController();
+    const estado = { gano: null };
+    const enCarrera = hayLocal && CHARLA_EN_CARRERA && !opts.sinCarrera;
+    const pLocal = enCarrera ? correrLocal(LLM_CHARLA_TIMEOUT_MS, estado, ctrlLocal.signal) : null;
+    const nubes = [correrDeepseek(ctrlDs.signal)];
+    if (hayGemini) nubes.unshift(correrGemini());
+    const n = await _primeroQueSirva(nubes);
+    if (n) {
+      estado.gano = n.motor;
+      if (n.motor !== "deepseek") ctrlDs.abort();
+      ctrlLocal.abort();
+      return n;
+    }
+    if (pLocal) return await pLocal;
+    return hayLocal ? await correrLocal(LLM_CHARLA_TIMEOUT_SERIE_MS) : null;
+  }
   if (opts.geminiPrimero && hayGemini) {
     if (hayLocal && CHARLA_EN_CARRERA && !opts.sinCarrera) {
       // Los dos a la vez: Ollama no espera a que Gemini falle para empezar. Si la
@@ -3622,7 +3684,7 @@ async function _chatPanel(it, msg, nombre) {
 
 // Lo que se recuerda de la charla para seguir el hilo («¿y el riesgo?»).
 const _CHAT_TEMAS = new Set(["opinion", "senal", "porque", "riesgo", "precio", "noticias",
-                             "comparar", "ranking", "patron", "resumen", "regimen", "mi_portfolio"]);
+                             "comparar", "ranking", "patron", "resumen", "regimen", "mi_portfolio", "concepto"]);
 
 // ── El portafolio de cada usuario (4-nov-2026) ───────────────────────────
 // La sesión de class25B dura 30 min y la web abre una nueva en cada recarga,
@@ -3843,11 +3905,11 @@ function _acotarReferencia(t) {
   return s.length <= REF_MAX ? s : (s.slice(0, REF_MAX).match(/^[\s\S]*[.!?](?=\s)/)?.[0] || s.slice(0, REF_MAX));
 }
 async function _reescribirConMotor(texto, base, ev, historial, { debe = null, noDebe = null } = {}) {
-  if (!CHAT_REESCRIBIR || !base || !_hayMotorLenguaje(true)) return null;
+  if (!CHAT_REESCRIBIR || !base || !_hayMotorCharla(true)) return null;
   const corta = String(base).length <= REESCRIBIR_LOCAL_CHARS;
   // Larga y sin Gemini: no hay motor que llegue a tiempo. Sale la del sistema YA,
   // en vez de esperar 12 s a un Ollama que no termina.
-  if (!corta && !(CHARLA_GEMINI_PRIMERO && _geminiReady(true))) return null;
+  if (!corta && !(CHARLA_GEMINI_PRIMERO && (_geminiReady(true) || DS.disponible()))) return null;
   const referencia = _acotarReferencia(base);
   const evRef = { ...(ev || {}), hechos: [referencia] };
   const validar = t => {
@@ -4161,7 +4223,7 @@ async function _chatConRouter(texto, msg, sesion, historial, nombreUsuario) {
     // referencia en el prompt y queda sólo de respaldo si ningún motor contesta.
     || ef.intencion === "concepto"
     || (ef.intencion === "riesgo" && ef.subtipo === "magnitud"));
-  if (esCharla && _hayMotorLenguaje(true)) {
+  if (esCharla && _hayMotorCharla(true)) {
     _chatStats.asistidas++;
     const hechosCharla = conTema ? [ev.hechos[ev.hechos.length - 1]] : ev.hechos.slice(0, 1);
     const conRef = ef.intencion === "concepto" || ef.subtipo === "magnitud";
@@ -4170,6 +4232,15 @@ async function _chatConRouter(texto, msg, sesion, historial, nombreUsuario) {
     const _refTxt = conRef ? String(chatRedactar(ef, ev, { semilla: texto, nombre: nombreUsuario }).texto || "") : "";
     const referencia = _refTxt.length <= 300 ? _refTxt
       : (_refTxt.slice(0, 300).match(/^[\s\S]*[.!?](?=\s)/)?.[0] || _refTxt.slice(0, 300));
+    // Un país sin contexto de mercado (26-nov-2026): el ETF va sólo como dato.
+    if (Array.isArray(ef.pais) && ef.pais.length) {
+      const dp = ef.pais.map(p => {
+        const c = (p.tickers || []).map(tk => { const q = _chatCotiz.get(tk);
+          return q && Number.isFinite(q.cambio) ? `${tk} ${q.cambio >= 0 ? "+" : ""}${q.cambio.toFixed(1)}% hoy` : tk; });
+        return `${p.etiqueta} se sigue con ${c.join(", ")}`;
+      }).join("; ");
+      hechosCharla.push(`${dp} (mencionalo sólo si la pregunta es de inversión).`);
+    }
     const ctxCharla = { _modo: "charla", _hechos: conRef ? "" : hechosCharla.filter(Boolean).join(" "),
                         _referencia: referencia, riesgoGlobal: panel.riesgo ?? 0.5 };
     // Los números de la referencia cuentan como datos válidos para el validador.
@@ -4183,13 +4254,14 @@ async function _chatConRouter(texto, msg, sesion, historial, nombreUsuario) {
       if (r?.texto) {
         const v = validarCharla(r.texto);
         if (v.ok) {
-          respuesta = firmaCharla(v.texto, { semilla: `${texto}|${sesion.chatTurnos || 0}`, identidad: ef.intencion === "identidad" });
+          respuesta = firmaCharla(v.texto, { semilla: `${texto}|${sesion.chatTurnos || 0}`, identidad: ef.intencion === "identidad",
+                                             serio: TEMA_SERIO.test(`${texto} ${v.texto}`) });
           fuente = `${r.motor}·charla`; _chatStats.validadas++;
         } else { _chatStats.descartadas++; log(`🛡️ charla del motor descartada (${v.motivo}): "${String(r.texto).slice(0, 90)}"`, "warn"); }
       }
     } catch (e) { log(`⚠️ motor de lenguaje (charla): ${e?.message}`, "warn"); }
     if (!respuesta) log(`⚠️ charla sin respuesta de ningún motor → respaldo del redactor `
-      + `(gemini=${_geminiReady(true) ? "listo" : "pausado/sin clave"} local=${LLM_USA_LOCAL && !LLM.cortado() ? "listo" : "cortado/apagado"})`, "warn");
+      + `(gemini=${_geminiReady(true) ? "listo" : "pausado/sin clave"} local=${LLM_USA_LOCAL && !LLM.cortado() ? "listo" : "cortado/apagado"} deepseek=${DS.disponible() ? "listo" : "apagado/pausado"})`, "warn");
   } else if (CHAT_LLM_INTENCIONES.has(ef.intencion) && !conTema && ev.suficiente && _hayMotorLenguaje(true)) {
     _chatStats.asistidas++;
     const ctxLLM = {
@@ -4237,7 +4309,7 @@ async function _chatConRouter(texto, msg, sesion, historial, nombreUsuario) {
   // Si la escribió el motor (charla libre), un «sí» que venga después contesta
   // a ESE mensaje: el router lo manda de vuelta al motor con el historial.
   sesion.chatUltima = /charla/.test(fuente) ? "charla" : ef.intencion;
-  if (_CHAT_TEMAS.has(ef.intencion)) sesion.chatPrevio = { intencion: ef.intencion, tickers: ef.tickers || [], grupo: ef.grupo || null };
+  if (_CHAT_TEMAS.has(ef.intencion)) sesion.chatPrevio = { intencion: ef.intencion, tickers: ef.tickers || [], grupo: ef.grupo || null, concepto: ef.concepto || null };
   await _publicarRespuesta(respuesta, msg);
   log(`👤 Respuesta [${fuente}·${ef.intencion}${(ef.tickers || []).length ? " " + ef.tickers.join(",") : ""}`
     + `${ef.grupo ? " · " + ef.grupo.etiqueta : ""}] publicada (${respuesta.length} chars)`);
@@ -4727,6 +4799,7 @@ setInterval(async () => {
         + ` validadas=${_chatStats.validadas} descartadas=${_chatStats.descartadas}`
         + ` panel=${_chatRanking.size}rk/${_chatCotiz.size}cot` : " | chat_router=off"));
   if (LLM_USA_LOCAL) log(`❤️  ${LLM.resumen()}`);
+  log(`❤️  ${DS.resumen()}`);
 
   await redisPub.publish(CH_UI, JSON.stringify({
     type:                "class25B_heartbeat",

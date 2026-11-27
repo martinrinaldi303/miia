@@ -56,7 +56,8 @@ const CASOS = [
   ["Que podes responder ?", "capacidades", [], null],
   ["¿Quién es tu creador?", "identidad", [], null],
   ["¿sos de google?", "identidad", [], null, { subtipo: "proveedor" }],
-  ["¿Qué opinás de US?", "opinion", [], "Estados Unidos"],
+  ["¿Qué opinás del mercado de US?", "opinion", [], "Estados Unidos"],
+  ["¿Qué opinás de US?", "libre", [], null],          // 26-nov: un país sin contexto de mercado va a la charla
   ["¿Ves algún patrón?", "patron", [], null],
   ["Hola", "saludo", [], null],
   ["Hola MIIA, ¿qué opinás de XLK?", "opinion", ["XLK"], null],
@@ -196,7 +197,7 @@ chequear("detecta la amplitud que se deteriora", pts.some(p => p.clave === "ampl
 chequear("guarda anti-inflado: un acierto de 97 % se descarta", E.normalizarMetricas({ accuracy_directional: 97 }) === null,
   "el «97 %» de backtesting_stats no puede colarse");
 chequear("un acierto de 52,7 % pasa", E.normalizarMetricas({ accuracy_directional: 52.7, base_rate: 51 })?.acc === 52.7);
-const evUS = E.evidencia(cl("¿Qué opinás de US?"), P);
+const evUS = E.evidencia(cl("¿Qué opinás del mercado de US?"), P);   // 26-nov: sin «mercado», un país va a la charla
 chequear("«¿qué opinás de US?» trae datos de SPY, QQQ, IWM y DIA", evUS.suficiente && evUS.datos.grupos[0].vistas.length === 4);
 chequear("los hechos van acotados (≤ 8 líneas)", evUS.hechos.length <= 8);
 const frio = E.armarPanel({ ahora: AHORA, instrumentos: U.INSTRUMENTOS, mercado: E.estadoNYSE(new Date(AHORA)) });
@@ -207,7 +208,7 @@ seccion("4 · El redactor");
 const VIEJAS = /(Soy MIIA, tu asistente|Acá MIIA, tu asistente|Con eso no tengo un dato preciso|recomiendo reducir exposición|Preguntame lo que quieras|stop-loss del 3%|Estoy procesando el mercado)/i;
 const PROHIB = /\b(gemini|google|openai|chat ?gpt|gemma|ollama|class\d)/i;
 const CONSEJO = /(te recomiendo (comprar|vender)|deber[ií]as (comprar|vender)|compr[aá] ya|es una buena compra)/i;
-const PREGUNTAS = ["Hola", "Como podes hablar ?", "Que podes responder ?", "¿Qué opinás de US?", "¿Ves algún patrón?",
+const PREGUNTAS = ["Hola", "Como podes hablar ?", "Que podes responder ?", "¿Qué opinás del mercado de US?", "¿Ves algún patrón?",
   "¿qué opinás de XLK?", "riesgo de XLK", "XLK o XLF?", "¿qué está subiendo?", "¿cuál es tu tasa de acierto?",
   "¿El mercado está abierto?", "¿qué es un ETF?", "¿qué opinás de bitcoin?", "¿la fed va a bajar tasas?",
   "¿cómo está el mercado?", "¿conviene invertir ahora?", "¿Quién es tu creador?", "gracias!", "precio de SPY",
@@ -229,8 +230,8 @@ chequear("ninguna nombra un proveedor ni un módulo interno", prohib === 0);
 chequear("ninguna aconseja comprar o vender", consejo === 0, "el «recomiendo reducir exposición» viejo era un consejo");
 chequear("las de datos citan números del sistema", sinNumero.length === 0, sinNumero.join(" | "));
 
-const rUS = D.redactar(cl("¿Qué opinás de US?"), evUS, { semilla: "x" }).texto;
-chequear("«¿qué opinás de US?» nombra los cuatro y cita su promedio", ["SPY", "QQQ", "IWM", "DIA"].every(t => rUS.includes(t)) && /%/.test(rUS));
+const rUS = D.redactar(cl("¿Qué opinás del mercado de US?"), evUS, { semilla: "x" }).texto;
+chequear("«¿qué opinás del mercado de US?» nombra los cuatro y cita su promedio", ["SPY", "QQQ", "IWM", "DIA"].every(t => rUS.includes(t)) && /%/.test(rUS));
 const itP = cl("¿Ves algún patrón?");
 const rP = D.redactar(itP, E.evidencia(itP, P), { semilla: "x" }).texto;
 chequear("«¿ves algún patrón?» describe la rotación con números", /defensiv/i.test(rP) && /%/.test(rP));
@@ -452,7 +453,8 @@ seccion("9 · Las capturas del 5-nov (tarde): «Si porfavor» y la respuesta que
   chequear("una propuesta explícita gana aunque la última fuera charla",
     cl("dale", { oferta: OF, previo: PREV, ultima: "charla" }).destino?.intencion === "ranking");
   chequear("«¿qué pensás del fútbol argentino?» es charla, no ARGT", cl("¿Qué pensás del fútbol argentino?").intencion === "libre");
-  chequear("«¿cómo ves Argentina?» sigue siendo ARGT", cl("¿cómo ves Argentina?").grupo?.etiqueta === "Argentina");
+  chequear("«¿cómo ves Argentina?» va a la charla con ARGT como dato (26-nov)", cl("¿cómo ves Argentina?").intencion === "libre" && cl("¿cómo ves Argentina?").pais?.[0]?.etiqueta === "Argentina");
+  chequear("«¿cómo ves el mercado argentino?» sigue siendo ARGT", cl("¿cómo ves el mercado argentino?").grupo?.etiqueta === "Argentina");
 
   // El respaldo: no manda a repetir, y lo que pregunta queda como propuesta.
   const it = cl("¿Quién va a ganar el próximo mundial?");
@@ -509,7 +511,7 @@ for (const t of ["¿Quién creés que gana el próximo Mundial?", "¿cuál es la
   chequear(`«${t}» → libre`, cl(t).intencion === "libre", cl(t).intencion);
 }
 for (const [t, i] of [["¿qué sector gana hoy?", "ranking"], ["¿cuál sube más?", "ranking"],
-                      ["¿qué está más fuerte hoy?", "ranking"], ["que opinas de argentina?", "opinion"]]) {
+                      ["¿qué está más fuerte hoy?", "ranking"], ["que opinas de argentina?", "libre"], ["conviene invertir en argentina?", "opinion"]]) {
   chequear(`«${t}» sigue siendo ${i}`, cl(t).intencion === i, cl(t).intencion);
 }
 
