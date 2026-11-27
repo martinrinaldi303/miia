@@ -26,8 +26,8 @@
 # ============================================================================
 set -uo pipefail
 
-MODELO="${MIIA_LLM_MODELO:-gemma2:2b}"
-RAM_MIN_MB=3000           # el modelo pide ~2,1 GB de pico; esto deja margen
+MODELO="${MIIA_LLM_MODELO:-gemma3:1b}"
+RAM_MIN_MB=3000           # gemma3:1b pide ~1,2 GB (gemma2:2b ~2,1); esto deja margen
 DISCO_MIN_MB=4000
 
 ok()   { printf '   \033[32m[OK]\033[0m    %s\n' "$*"; }

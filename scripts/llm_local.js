@@ -52,8 +52,8 @@ try {
 // — es la misma trampa del HSTS en [::1] del 26-sep.
 const URL_BASE = process.env.OLLAMA_URL || "http://127.0.0.1:11434";
 
-/** El modelo. Ver «Por qué gemma2:2b» en CLAUDE.md antes de cambiarlo. */
-export const MODELO = process.env.MIIA_LLM_MODELO || "gemma2:2b";
+/** El modelo. gemma3:1b desde el 26-nov-2026 (antes gemma2:2b). */
+export const MODELO = process.env.MIIA_LLM_MODELO || "gemma3:1b";
 
 /** Timeout duro por pedido. Generoso: la primera llamada incluye cargar el
  *  modelo del disco (~1,6 GB), que en este server son varios segundos. */

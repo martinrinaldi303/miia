@@ -933,7 +933,7 @@ const LLM_LOCAL_TURNOS      = Number(process.env.MIIA_LLM_TURNOS || 2);
 // La charla libre (preguntas fuera del sistema) usa su propio prompt, corto, y
 // el mismo tope de salida por defecto: la firma «soy una IA…» la agrega el
 // código, no la genera el modelo, así que no cuesta tokens.
-const LLM_CHARLA_MAX_TOKENS = Number(process.env.MIIA_LLM_MAX_TOKENS_CHARLA || LLM_LOCAL_MAX_TOKENS);
+const LLM_CHARLA_MAX_TOKENS = Number(process.env.MIIA_LLM_MAX_TOKENS_CHARLA || 45);  // 45 con gemma3:1b (26-nov-2026)
 const LLM_LOCAL_CHARS_TURNO = 250;
 // 26-nov-2026: en la charla Ollama recibía ~300 tokens (prompt + 2 turnos de 250
 // caracteres) y tardaba 8,6 s sólo en leerlos; con la generación (~7 tok/s) se
